@@ -222,7 +222,7 @@ void loop()
     static my_helpers::Circular<float , READINGS_AMOUNT_AVR> el(0);
     static float az_prior = 0;
     static float el_prior = 0;
-    const static auto lightSens = radians(0.1);
+    const static auto lightSens = radians(0.12);
     static bool leadON = true;
     // if programming failed, don't try to do anything
     if (!dmpReady) return;
@@ -258,7 +258,7 @@ void loop()
 #endif
         }
 #ifdef USE_LCD
-        if (light > 10000 && leadON)
+        if (light > 7000 && leadON)
             analogWrite(backLightPin, 10);
 #endif
         if (light > 30000)
