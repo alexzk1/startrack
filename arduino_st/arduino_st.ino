@@ -226,7 +226,6 @@ void loop()
     static decltype(el0) el_prior = 0;
 
     const static float lightSens = radians(0.12);
-    static bool leadON = true;
     // if programming failed, don't try to do anything
     if (!dmpReady) return;
 
@@ -251,39 +250,36 @@ void loop()
     }
     else
     {
-
         if (abs(az.lastDelta()) > lightSens || abs(el.lastDelta()) > lightSens)
         {
-            leadON = true;
             light = 0;
 #ifdef USE_LCD
             analogWrite(backLightPin, 100);
 #endif
         }
-#ifdef USE_LCD
-        if (light > 7000 && leadON)
-            analogWrite(backLightPin, 10);
-#endif
+
         if (light > 30000)
         {
 #ifdef USE_LCD
             digitalWrite(backLightPin, LOW);
 #endif
-            leadON = false;
             set_sleep_mode(SLEEP_MODE_IDLE); //only idle seems works by interrupt from sensor
             sleep_enable();
             sleep_mode();
             sleep_disable();
         }
-
-        if (timeElapsed > 250)
+        else
         {
-            if (leadON)
+#ifdef USE_LCD
+            if (light > 7000) analogWrite(backLightPin, 10);
+#endif
+
+            if (timeElapsed > 250)
             {
                 auto t = mpu.getTemperature() / 340. + +36.53; //celsius
                 printValues(az, el, t);
+                timeElapsed = 0;
             }
-            timeElapsed = 0;
         }
     }
 }
