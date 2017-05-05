@@ -6,21 +6,17 @@
 
 
 #define SENSOR_6050_FIFO_HZ 10 //my update to motion_api, should be defined prior include
+#define USE_LCD
+#define INTERRUPT_PIN 2  // use pin 2 on Arduino Uno & most boards
+//#define READINGS_AMOUNT_AVR static_cast<uint8_t>((SENSOR_6050_FIFO_HZ) / 10 + 3) //how many reading to use to calc avr
+#define READINGS_AMOUNT_AVR 3
+
 
 #include "MPU6050_6Axis_MotionApps20.h"
 #include "MPU6050.h" // not necessary if using MotionApps include file
 #include "elapsedMillis/elapsedMillis.h"
 #include "my_owns/circular.h"
 
-#define USE_LCD
-#define INTERRUPT_PIN 2  // use pin 2 on Arduino Uno & most boards
-//#define READINGS_AMOUNT_AVR static_cast<uint8_t>((SENSOR_6050_FIFO_HZ) / 10 + 3) //how many reading to use to calc avr
-#define READINGS_AMOUNT_AVR 3
-
-// MPU control/status vars
-bool dmpReady = false;  // set true if DMP init was successful
-uint8_t  devStatus;      // return status after each device operation (0 = success, !0 = error)
-uint16_t packetSize;    // expected DMP packet size (default is 42 bytes)
 
 #ifdef USE_LCD
 #include "LiquidCrystal.h"
@@ -29,6 +25,12 @@ LiquidCrystal lcd(4, 5, 10, 11, 12, 13);
 #endif
 
 MPU6050 mpu;
+// MPU control/status vars
+bool dmpReady = false;  // set true if DMP init was successful
+uint8_t  devStatus;      // return status after each device operation (0 = success, !0 = error)
+uint16_t packetSize;    // expected DMP packet size (default is 42 bytes)
+
+
 
 inline void PersonalSensorCalibrate()
 {
