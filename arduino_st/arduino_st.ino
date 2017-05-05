@@ -4,7 +4,7 @@
 #include "Wire.h"
 #endif
 
-
+#define LCD_BACK_LIGHT_SENS_DEGREE (0.12) //sensevity of when to turn on backlight
 #define SENSOR_6050_FIFO_HZ 10 //my update to motion_api, should be defined prior include
 #define USE_LCD
 #define INTERRUPT_PIN 2  // use pin 2 on Arduino Uno & most boards
@@ -225,7 +225,7 @@ void loop()
     static decltype(az0) az_prior = 0;
     static decltype(el0) el_prior = 0;
 
-    const static float lightSens = radians(0.12);
+    const static float lightSens = radians(LCD_BACK_LIGHT_SENS_DEGREE);
     // if programming failed, don't try to do anything
     if (!dmpReady) return;
 
