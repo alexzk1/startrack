@@ -160,12 +160,12 @@ void setup()
 static float az0 = 0;
 static float el0 = 0;
 
-void readSensor(my_helpers::Circular<float, READINGS_AMOUNT_AVR>& az, my_helpers::Circular<float, READINGS_AMOUNT_AVR>& el)
+void readSensor(my_helpers::Circular<decltype(az0), READINGS_AMOUNT_AVR>& az, my_helpers::Circular<decltype(el0), READINGS_AMOUNT_AVR>& el)
 {
     using namespace my_helpers;
     sensorDataReady = false;
     uint8_t mpuIntStatus = mpu.getIntStatus();
-    int16_t fifoCount   = mpu.getFIFOCount();
+    int16_t fifoCount    = mpu.getFIFOCount();
 
     // check for overflow (this should never happen unless our code is too inefficient)
 
@@ -198,7 +198,7 @@ void readSensor(my_helpers::Circular<float, READINGS_AMOUNT_AVR>& az, my_helpers
                 //https://www.reddit.com/r/Astronomy/comments/3udenf/quaternion_matrix_or_euler_angles_conversion_to/
                 el.push_back_lpf(atan(gravity.x / sqrt(sqrf(gravity.y) + sqrf(gravity.z))) -el0);
                 //az.push_back(-2 * atan2(q.z, q.w));
-                float az1 = removeRotRad<float>(-2.f * atan2(q.z, q.w)) - az0;
+                auto az1 = removeRotRad<decltype(az0)>(-2.f * atan2(q.z, q.w)) - az0;
                 while (az1 < 0.f) az1 += M_PI * 2.f;
 
                 az.push_back_lpf(az1);
@@ -218,11 +218,12 @@ void loop()
     static elapsedMillis timeElapsed;
     static elapsedMillis light;
 
-    static my_helpers::Circular<float , READINGS_AMOUNT_AVR> az(0);
-    static my_helpers::Circular<float , READINGS_AMOUNT_AVR> el(0);
-    static float az_prior = 0;
-    static float el_prior = 0;
-    const static auto lightSens = radians(0.12);
+    static my_helpers::Circular<decltype(az0) , READINGS_AMOUNT_AVR> az(0);
+    static my_helpers::Circular<decltype(el0) , READINGS_AMOUNT_AVR> el(0);
+    static decltype(az0) az_prior = 0;
+    static decltype(el0) el_prior = 0;
+
+    const static float lightSens = radians(0.12);
     static bool leadON = true;
     // if programming failed, don't try to do anything
     if (!dmpReady) return;
