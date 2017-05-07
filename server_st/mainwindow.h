@@ -6,6 +6,7 @@
 
 #include "runners.h"
 #include <memory>
+#include <atomic>
 
 namespace Ui {
     class MainWindow;
@@ -26,11 +27,16 @@ private slots:
     void on_pushButton_clicked();
     void on_cbPorts_currentIndexChanged(int);
     void arduinoRead(float az_rad, float el_rad);
+    void on_pushButton_2_clicked();
+
 private:
     Ui::MainWindow *ui;
     utility::runner_t comThread;
-
+    std::atomic_flag skipWrite;
+    float volatile gaz;
+    float volatile gel;
     void startComPoll();
+    void write(float az_rad, float el_rad);
 signals:
     void onArduinoRead(float az_rad, float el_rad);
 };

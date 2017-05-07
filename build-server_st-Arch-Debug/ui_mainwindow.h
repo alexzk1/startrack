@@ -38,6 +38,7 @@ public:
     QLabel *lblAz;
     QLabel *label_3;
     QLabel *lblAlt;
+    QPushButton *pushButton_2;
     QMenuBar *menuBar;
     QToolBar *mainToolBar;
     QStatusBar *statusBar;
@@ -88,6 +89,11 @@ public:
 
         formLayout->setWidget(4, QFormLayout::FieldRole, lblAlt);
 
+        pushButton_2 = new QPushButton(centralWidget);
+        pushButton_2->setObjectName(QStringLiteral("pushButton_2"));
+
+        formLayout->setWidget(5, QFormLayout::FieldRole, pushButton_2);
+
         MainWindow->setCentralWidget(centralWidget);
         menuBar = new QMenuBar(MainWindow);
         menuBar->setObjectName(QStringLiteral("menuBar"));
@@ -111,9 +117,10 @@ public:
         label->setText(QApplication::translate("MainWindow", "Device Port:", Q_NULLPTR));
         pushButton->setText(QApplication::translate("MainWindow", "Refresh", Q_NULLPTR));
         label_2->setText(QApplication::translate("MainWindow", "Azimuth:", Q_NULLPTR));
-        lblAz->setText(QApplication::translate("MainWindow", "TextLabel", Q_NULLPTR));
+        lblAz->setText(QApplication::translate("MainWindow", "-", Q_NULLPTR));
         label_3->setText(QApplication::translate("MainWindow", "Alt:", Q_NULLPTR));
-        lblAlt->setText(QApplication::translate("MainWindow", "TextLabel", Q_NULLPTR));
+        lblAlt->setText(QApplication::translate("MainWindow", "-", Q_NULLPTR));
+        pushButton_2->setText(QApplication::translate("MainWindow", "Set To Arduino", Q_NULLPTR));
     } // retranslateUi
 
 };

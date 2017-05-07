@@ -8,8 +8,8 @@
 #define SENSOR_6050_FIFO_HZ 10 //my update to motion_api, should be defined prior include
 #define USE_LCD
 #define INTERRUPT_PIN 2  // use pin 2 on Arduino Uno & most boards
-//#define READINGS_AMOUNT_AVR static_cast<uint8_t>((SENSOR_6050_FIFO_HZ) / 10 + 3) //how many reading to use to calc avr
-#define READINGS_AMOUNT_AVR 3
+#define READINGS_AMOUNT_AVR static_cast<uint8_t>((SENSOR_6050_FIFO_HZ) / 10 + 3) //how many reading to use to calc avr
+//#define READINGS_AMOUNT_AVR 3
 
 #include "MPU6050_6Axis_MotionApps20.h"
 #include "MPU6050.h" // not necessary if using MotionApps include file
@@ -161,6 +161,14 @@ void setup()
 static float az0 = 0;
 static float el0 = 0;
 
+
+float getAz(float az1)
+{
+    while (az1 < 0.f) az1 += M_PI * 2.f;
+    return my_helpers::removeRotRad<decltype(az0)>(az1);
+}
+
+
 void readSensor(my_helpers::Circular<decltype(az0), READINGS_AMOUNT_AVR>& az, my_helpers::Circular<decltype(el0), READINGS_AMOUNT_AVR>& el)
 {
     using namespace my_helpers;
@@ -197,12 +205,8 @@ void readSensor(my_helpers::Circular<decltype(az0), READINGS_AMOUNT_AVR>& az, my
                 mpu.dmpGetGravity(&gravity, &q); gravity.normalize();
 
                 //https://www.reddit.com/r/Astronomy/comments/3udenf/quaternion_matrix_or_euler_angles_conversion_to/
-                el.push_back_lpf(atan(gravity.x / sqrt(sqrf(gravity.y) + sqrf(gravity.z))) -el0);
-                //az.push_back(-2 * atan2(q.z, q.w));
-                auto az1 = removeRotRad<decltype(az0)>(-2.f * atan2(q.z, q.w)) - az0;
-                while (az1 < 0.f) az1 += M_PI * 2.f;
-
-                az.push_back_lpf(az1);
+                el.push_back_lpf(removeRotRad<decltype(el0)>(atan(gravity.x / sqrt(sqrf(gravity.y) + sqrf(gravity.z)))));
+                az.push_back_lpf(getAz(-2.f * atan2(q.z, q.w)));
             }
             while (fifoCount > 0);
         }
@@ -214,6 +218,7 @@ void readSensor(my_helpers::Circular<decltype(az0), READINGS_AMOUNT_AVR>& az, my
 // ===                    MAIN PROGRAM LOOP                     ===
 // ================================================================
 
+
 void loop()
 {
     static bool once = true;
@@ -222,8 +227,6 @@ void loop()
 
     static my_helpers::Circular<decltype(az0) , READINGS_AMOUNT_AVR> az(0);
     static my_helpers::Circular<decltype(el0) , READINGS_AMOUNT_AVR> el(0);
-    static decltype(az0) az_prior = 0;
-    static decltype(el0) el_prior = 0;
 
     const static float lightSens = radians(LCD_BACK_LIGHT_SENS_DEGREE);
     // if programming failed, don't try to do anything
@@ -244,35 +247,42 @@ void loop()
             once = false;
             timeElapsed = 0;
             az.clear(az0);
-            el.clear(az0);
+            el.clear(el0);
             light = 0;
         }
     }
     else
     {
-        while (Serial.available() >= 3 + sizeof(ard_st::Message))
+        while (Serial.available() >= 3 + 9)
         {
             static ard_st::Message msg;
             if (Serial.find(MESSAGE_HDR))
             {
                 //computer makes S/R request, and arduino just responds
-                Serial.readBytes(msg.buffer, sizeof(ard_st::Message));
-                my_helpers::no_interrupts lock;
-                if (msg.message.Command == 'S') //set
+                Serial.readBytes(msg.buffer, 9);
                 {
-                    ard_st::readAzEl(msg.message.value, az0, el0);
-                    az0 = -az0 + az;
-                    el0 = -el0 + el;
-                    az.clear(az0);
-                    el.clear(az0);
-                    continue;
-                }
-                if (msg.message.Command == 'R') //read, other part of message must be present but ignored
-                {
-                    ard_st::packAzEl(msg.message.value, az.avr(), el.avr());
-                    Serial.write(msg.message.value.buffer, sizeof(msg.message.value.buffer));
-                    Serial.flush();
-                    continue;
+                    my_helpers::no_interrupts lock;
+                    if (msg.message.Command == 'S') //set
+                    {
+                        float azm = 0;
+                        float elm = 0;
+
+                        ard_st::readAzEl(msg.message.value, &azm, &elm);
+
+                        az0 = az + azm;
+                        el0 = el + elm;
+
+                        az.clear(az0);
+                        el.clear(el0);
+                        continue;
+                    }
+                    if (msg.message.Command == 'R') //read, other part of message must be present but ignored
+                    {
+                        ard_st::packAzEl(msg.message.value, getAz(az - az0), el - el0);
+                        Serial.write(msg.message.value.buffer, sizeof(msg.message.value.buffer));
+                        Serial.flush();
+                        continue;
+                    }
                 }
             }
         }
@@ -304,7 +314,7 @@ void loop()
             if (timeElapsed > 250)
             {
                 auto t = mpu.getTemperature() / 340. + +36.53; //celsius
-                printValues(az, el, t);
+                printValues(getAz(az - az0), el - el0, t);
                 timeElapsed = 0;
             }
         }

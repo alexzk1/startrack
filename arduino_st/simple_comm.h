@@ -6,6 +6,7 @@
 #define ARDUINO_ST_SIMPLE_COMM_H
 
 #include <stdint.h>
+
 #if __BYTE_ORDER__ != __ORDER_LITTLE_ENDIAN__
 #error Only little-endian is implemented, consider to update code.
 #endif
@@ -13,39 +14,47 @@
 #define COMM_MULL 100000
 #define MESSAGE_HDR "MSG"
 
+
+
+
 namespace ard_st
 {
     union Packer
     {
-        struct
+        struct vals_t
         {
             int32_t az;
             int32_t el;
         } vals;
         char   buffer[8];
-    };
+
+    }__attribute__((packed));
 
     union Message
     {
-        //keeping aligned to 8 bytes (16), so it will fit into default arduino 64 bytes buffer exact times
+
         struct Msg
         {
             char   Command;
             Packer value;
         } message;
         char buffer[9];
-    };
+    }__attribute__((packed));
+
+
 
     inline void packAzEl(Packer& tmp, float azv, float elv)
     {
-        tmp.vals.az = static_cast<float>(COMM_MULL) * azv;
-        tmp.vals.el = static_cast<float>(COMM_MULL) * elv;
+        static_assert(sizeof(Packer) == 8, "Something wrong with compiler");
+        tmp.vals.az = static_cast<decltype(tmp.vals.az)>(static_cast<float>(COMM_MULL) * azv);
+        tmp.vals.el = static_cast<decltype(tmp.vals.el)>(static_cast<float>(COMM_MULL) * elv);
     };
 
-    inline void readAzEl(const Packer& value, float &azv, float &elv)
+    inline void readAzEl(const Packer& value, float *azv, float *elv)
     {
-        azv = static_cast<float>(value.vals.az) / static_cast<float>(COMM_MULL);
-        elv = static_cast<float>(value.vals.el) / static_cast<float>(COMM_MULL);
+        static_assert(sizeof(Packer) == 8, "Something wrong with compiler");
+        *azv = static_cast<float>(value.vals.az) / static_cast<float>(COMM_MULL);
+        *elv = static_cast<float>(value.vals.el) / static_cast<float>(COMM_MULL);
     }
 }
 #endif //ARDUINO_ST_SIMPLE_COMM_H

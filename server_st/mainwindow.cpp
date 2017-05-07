@@ -16,7 +16,9 @@ Q_DECLARE_METATYPE(QSerialPortInfo);
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
-    ui(new Ui::MainWindow)
+    ui(new Ui::MainWindow),
+    comThread(),
+    skipWrite(ATOMIC_FLAG_INIT)
 {
     ui->setupUi(this);
 
@@ -95,29 +97,47 @@ void MainWindow::startComPoll()
         const bool op = port.open(QIODevice::ReadWrite);
         std::this_thread::sleep_for(15s); // device gets reset, have to wait
         port.setDataTerminalReady(false); //disable autoreset of device
+        skipWrite.test_and_set();
+
         while (!(*stop))
         {
             if (op) //if failed to open, still should start thread which does nothing
             {
                 const static std::string header(MESSAGE_HDR);
                 Message msg;
-                msg.message.Command = 'R';
+                packAzEl(msg.message.value, gaz, gel);
+                bool shouldSet = !skipWrite.test_and_set();
+                msg.message.Command = (shouldSet)?'S':'R';
                 port.write(header.c_str(), header.size());
                 port.write(msg.buffer, sizeof(msg.buffer));
                 port.waitForBytesWritten();
-
-                for(int i = 0; i < 100 && !(*stop) && port.bytesAvailable() < sizeof(msg.message.value); ++i)
-                    std::this_thread::sleep_for(20ms);
-
-                if (sizeof(msg.message.value.buffer) == port.read(msg.message.value.buffer, sizeof(msg.message.value.buffer)))
+                if (!shouldSet)
                 {
-                    float az, el;
-                    readAzEl(msg.message.value, az, el);
-                    //qDebug() <<"Az = " <<degrees(az) << ";  El = "<<degrees(el);
-                    emit this->onArduinoRead(az, el);
+                    for(int i = 0; i < 100 && !(*stop) && port.bytesAvailable() < sizeof(msg.message.value); ++i)
+                        std::this_thread::sleep_for(20ms);
+
+                    if (sizeof(msg.message.value.buffer) == port.read(msg.message.value.buffer, sizeof(msg.message.value.buffer)))
+                    {
+                        float az, el;
+                        readAzEl(msg.message.value, &az, &el);
+                        //qDebug() <<"Az = " <<degrees(az) << ";  El = "<<degrees(el);
+                        emit this->onArduinoRead(az, el);
+                    }
                 }
             }
-            std::this_thread::sleep_for(500ms);
+            std::this_thread::sleep_for(1500ms);
         }
     });
+}
+
+void MainWindow::write(float az_rad, float el_rad)
+{
+    gaz = az_rad;
+    gel = el_rad;
+    skipWrite.clear();
+}
+
+void MainWindow::on_pushButton_2_clicked()
+{
+    write(3.1415f, 0);
 }
