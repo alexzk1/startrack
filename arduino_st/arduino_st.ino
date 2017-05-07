@@ -4,19 +4,18 @@
 #include "Wire.h"
 #endif
 
-#define LCD_BACK_LIGHT_SENS_DEGREE (0.12) //sensevity of when to turn on backlight
+#define LCD_BACK_LIGHT_SENS_DEGREE (0.15) //sensevity of when to turn on backlight
 #define SENSOR_6050_FIFO_HZ 10 //my update to motion_api, should be defined prior include
 #define USE_LCD
 #define INTERRUPT_PIN 2  // use pin 2 on Arduino Uno & most boards
 //#define READINGS_AMOUNT_AVR static_cast<uint8_t>((SENSOR_6050_FIFO_HZ) / 10 + 3) //how many reading to use to calc avr
 #define READINGS_AMOUNT_AVR 3
 
-
 #include "MPU6050_6Axis_MotionApps20.h"
 #include "MPU6050.h" // not necessary if using MotionApps include file
 #include "elapsedMillis/elapsedMillis.h"
 #include "my_owns/circular.h"
-
+#include "simple_comm.h"
 
 #ifdef USE_LCD
 #include "LiquidCrystal.h"
@@ -208,6 +207,7 @@ void readSensor(my_helpers::Circular<decltype(az0), READINGS_AMOUNT_AVR>& az, my
             while (fifoCount > 0);
         }
     }
+    Serial.begin(115200);
 }
 
 // ================================================================
@@ -250,6 +250,33 @@ void loop()
     }
     else
     {
+        while (Serial.available() >= 3 + sizeof(ard_st::Message))
+        {
+            static ard_st::Message msg;
+            if (Serial.find(MESSAGE_HDR))
+            {
+                //computer makes S/R request, and arduino just responds
+                Serial.readBytes(msg.buffer, sizeof(ard_st::Message));
+                my_helpers::no_interrupts lock;
+                if (msg.message.Command == 'S') //set
+                {
+                    ard_st::readAzEl(msg.message.value, az0, el0);
+                    az0 = -az0 + az;
+                    el0 = -el0 + el;
+                    az.clear(az0);
+                    el.clear(az0);
+                    continue;
+                }
+                if (msg.message.Command == 'R') //read, other part of message must be present but ignored
+                {
+                    ard_st::packAzEl(msg.message.value, az.avr(), el.avr());
+                    Serial.write(msg.message.value.buffer, sizeof(msg.message.value.buffer));
+                    Serial.flush();
+                    continue;
+                }
+            }
+        }
+
         if (abs(az.lastDelta()) > lightSens || abs(el.lastDelta()) > lightSens)
         {
             light = 0;

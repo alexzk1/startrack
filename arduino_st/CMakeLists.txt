@@ -35,4 +35,4 @@ include_directories(/home/alex/Work/arduino/libraries)
 include_directories(/home/alex/Work/arduino/libraries/MPU6050)
 #https://github.com/queezythegreat/arduino-cmake#arduino-libraries
 generate_arduino_firmware(${CMAKE_PROJECT_NAME}
-        ARDLIBS Wire LiquidCrystal I2CDev MPU6050)
+        ARDLIBS Wire LiquidCrystal I2CDev MPU6050 Serial)
