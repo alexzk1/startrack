@@ -269,11 +269,10 @@ void loop()
 
                         ard_st::readAzEl(msg.message.value, &azm, &elm);
 
-                        az0 = az + azm;
-                        el0 = el + elm;
-
-                        az.clear(az0);
-                        el.clear(el0);
+                        az0 = az - azm;
+                        el0 = el - elm;
+                        az.push_back(azm);
+                        el.push_back(elm);
                         continue;
                     }
                     if (msg.message.Command == 'R') //read, other part of message must be present but ignored

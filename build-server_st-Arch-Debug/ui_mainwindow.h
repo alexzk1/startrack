@@ -9,6 +9,7 @@
 #ifndef UI_MAINWINDOW_H
 #define UI_MAINWINDOW_H
 
+#include <AngleSpinBox.hpp>
 #include <QtCore/QVariant>
 #include <QtWidgets/QAction>
 #include <QtWidgets/QApplication>
@@ -38,7 +39,11 @@ public:
     QLabel *lblAz;
     QLabel *label_3;
     QLabel *lblAlt;
-    QPushButton *pushButton_2;
+    QLabel *label_4;
+    QLabel *label_5;
+    AngleSpinBox *latBox;
+    QLabel *label_6;
+    AngleSpinBox *lonBox;
     QMenuBar *menuBar;
     QToolBar *mainToolBar;
     QStatusBar *statusBar;
@@ -47,7 +52,9 @@ public:
     {
         if (MainWindow->objectName().isEmpty())
             MainWindow->setObjectName(QStringLiteral("MainWindow"));
-        MainWindow->resize(438, 425);
+        MainWindow->resize(358, 425);
+        MainWindow->setContextMenuPolicy(Qt::NoContextMenu);
+        MainWindow->setUnifiedTitleAndToolBarOnMac(true);
         centralWidget = new QWidget(MainWindow);
         centralWidget->setObjectName(QStringLiteral("centralWidget"));
         formLayout = new QFormLayout(centralWidget);
@@ -89,15 +96,36 @@ public:
 
         formLayout->setWidget(4, QFormLayout::FieldRole, lblAlt);
 
-        pushButton_2 = new QPushButton(centralWidget);
-        pushButton_2->setObjectName(QStringLiteral("pushButton_2"));
+        label_4 = new QLabel(centralWidget);
+        label_4->setObjectName(QStringLiteral("label_4"));
+        label_4->setAlignment(Qt::AlignCenter);
 
-        formLayout->setWidget(5, QFormLayout::FieldRole, pushButton_2);
+        formLayout->setWidget(5, QFormLayout::SpanningRole, label_4);
+
+        label_5 = new QLabel(centralWidget);
+        label_5->setObjectName(QStringLiteral("label_5"));
+
+        formLayout->setWidget(6, QFormLayout::LabelRole, label_5);
+
+        latBox = new AngleSpinBox(centralWidget);
+        latBox->setObjectName(QStringLiteral("latBox"));
+
+        formLayout->setWidget(6, QFormLayout::FieldRole, latBox);
+
+        label_6 = new QLabel(centralWidget);
+        label_6->setObjectName(QStringLiteral("label_6"));
+
+        formLayout->setWidget(7, QFormLayout::LabelRole, label_6);
+
+        lonBox = new AngleSpinBox(centralWidget);
+        lonBox->setObjectName(QStringLiteral("lonBox"));
+
+        formLayout->setWidget(7, QFormLayout::FieldRole, lonBox);
 
         MainWindow->setCentralWidget(centralWidget);
         menuBar = new QMenuBar(MainWindow);
         menuBar->setObjectName(QStringLiteral("menuBar"));
-        menuBar->setGeometry(QRect(0, 0, 438, 22));
+        menuBar->setGeometry(QRect(0, 0, 358, 22));
         MainWindow->setMenuBar(menuBar);
         mainToolBar = new QToolBar(MainWindow);
         mainToolBar->setObjectName(QStringLiteral("mainToolBar"));
@@ -105,6 +133,11 @@ public:
         statusBar = new QStatusBar(MainWindow);
         statusBar->setObjectName(QStringLiteral("statusBar"));
         MainWindow->setStatusBar(statusBar);
+#ifndef QT_NO_SHORTCUT
+        label->setBuddy(cbPorts);
+        label_5->setBuddy(latBox);
+        label_6->setBuddy(lonBox);
+#endif // QT_NO_SHORTCUT
 
         retranslateUi(MainWindow);
 
@@ -113,14 +146,19 @@ public:
 
     void retranslateUi(QMainWindow *MainWindow)
     {
-        MainWindow->setWindowTitle(QApplication::translate("MainWindow", "MainWindow", Q_NULLPTR));
-        label->setText(QApplication::translate("MainWindow", "Device Port:", Q_NULLPTR));
-        pushButton->setText(QApplication::translate("MainWindow", "Refresh", Q_NULLPTR));
+        MainWindow->setWindowTitle(QApplication::translate("MainWindow", "StarTrack Arduino<->Stellarium Connector", Q_NULLPTR));
+        label->setText(QApplication::translate("MainWindow", "&Device Port:", Q_NULLPTR));
+        pushButton->setText(QApplication::translate("MainWindow", "&Refresh", Q_NULLPTR));
         label_2->setText(QApplication::translate("MainWindow", "Azimuth:", Q_NULLPTR));
         lblAz->setText(QApplication::translate("MainWindow", "-", Q_NULLPTR));
         label_3->setText(QApplication::translate("MainWindow", "Alt:", Q_NULLPTR));
         lblAlt->setText(QApplication::translate("MainWindow", "-", Q_NULLPTR));
-        pushButton_2->setText(QApplication::translate("MainWindow", "Set To Arduino", Q_NULLPTR));
+#ifndef QT_NO_TOOLTIP
+        label_4->setToolTip(QApplication::translate("MainWindow", "...ensure system uses proper clock set too!", Q_NULLPTR));
+#endif // QT_NO_TOOLTIP
+        label_4->setText(QApplication::translate("MainWindow", "Current Place (set the same as in Stellarium)", Q_NULLPTR));
+        label_5->setText(QApplication::translate("MainWindow", "L&atitude:", Q_NULLPTR));
+        label_6->setText(QApplication::translate("MainWindow", "L&ongitude:", Q_NULLPTR));
     } // retranslateUi
 
 };

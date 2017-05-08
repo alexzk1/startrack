@@ -6,19 +6,28 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>438</width>
+    <width>358</width>
     <height>425</height>
    </rect>
   </property>
+  <property name="contextMenuPolicy">
+   <enum>Qt::NoContextMenu</enum>
+  </property>
   <property name="windowTitle">
-   <string>MainWindow</string>
+   <string>StarTrack Arduino&lt;-&gt;Stellarium Connector</string>
+  </property>
+  <property name="unifiedTitleAndToolBarOnMac">
+   <bool>true</bool>
   </property>
   <widget class="QWidget" name="centralWidget">
    <layout class="QFormLayout" name="formLayout">
     <item row="0" column="0">
      <widget class="QLabel" name="label">
       <property name="text">
-       <string>Device Port:</string>
+       <string>&amp;Device Port:</string>
+      </property>
+      <property name="buddy">
+       <cstring>cbPorts</cstring>
       </property>
      </widget>
     </item>
@@ -28,7 +37,7 @@
     <item row="1" column="1">
      <widget class="QPushButton" name="pushButton">
       <property name="text">
-       <string>Refresh</string>
+       <string>&amp;Refresh</string>
       </property>
      </widget>
     </item>
@@ -60,12 +69,44 @@
       </property>
      </widget>
     </item>
-    <item row="5" column="1">
-     <widget class="QPushButton" name="pushButton_2">
+    <item row="5" column="0" colspan="2">
+     <widget class="QLabel" name="label_4">
+      <property name="toolTip">
+       <string>...ensure system uses proper clock set too!</string>
+      </property>
       <property name="text">
-       <string>Set To Arduino</string>
+       <string>Current Place (set the same as in Stellarium)</string>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignCenter</set>
       </property>
      </widget>
+    </item>
+    <item row="6" column="0">
+     <widget class="QLabel" name="label_5">
+      <property name="text">
+       <string>L&amp;atitude:</string>
+      </property>
+      <property name="buddy">
+       <cstring>latBox</cstring>
+      </property>
+     </widget>
+    </item>
+    <item row="6" column="1">
+     <widget class="AngleSpinBox" name="latBox"/>
+    </item>
+    <item row="7" column="0">
+     <widget class="QLabel" name="label_6">
+      <property name="text">
+       <string>L&amp;ongitude:</string>
+      </property>
+      <property name="buddy">
+       <cstring>lonBox</cstring>
+      </property>
+     </widget>
+    </item>
+    <item row="7" column="1">
+     <widget class="AngleSpinBox" name="lonBox"/>
     </item>
    </layout>
   </widget>
@@ -74,7 +115,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>438</width>
+     <width>358</width>
      <height>22</height>
     </rect>
    </property>
@@ -90,6 +131,13 @@
   <widget class="QStatusBar" name="statusBar"/>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
+ <customwidgets>
+  <customwidget>
+   <class>AngleSpinBox</class>
+   <extends>QSpinBox</extends>
+   <header location="global">AngleSpinBox.hpp</header>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections/>
 </ui>

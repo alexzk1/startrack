@@ -12,10 +12,10 @@ MAKEFILE      = Makefile
 
 CC            = gcc
 CXX           = g++
-DEFINES       = -DQT_DEPRECATED_WARNINGS -DQT_QML_DEBUG -DQT_WIDGETS_LIB -DQT_GUI_LIB -DQT_SERIALPORT_LIB -DQT_CORE_LIB
+DEFINES       = -DQT_DEPRECATED_WARNINGS -DQT_QML_DEBUG -DQT_WIDGETS_LIB -DQT_GUI_LIB -DQT_SERIALPORT_LIB -DQT_NETWORK_LIB -DQT_CORE_LIB
 CFLAGS        = -pipe -g -Wall -W -D_REENTRANT -fPIC $(DEFINES)
 CXXFLAGS      = -pipe -march=native -std=c++14 -Wall -march=native -frtti -fexceptions -Werror=return-type -Werror=overloaded-virtual -Wctor-dtor-privacy -Werror=delete-non-virtual-dtor -Werror=strict-aliasing -fstrict-aliasing -g -std=gnu++1y -Wall -W -D_REENTRANT -fPIC $(DEFINES)
-INCPATH       = -I../server_st -I. -isystem /usr/include/qt -isystem /usr/include/qt/QtWidgets -isystem /usr/include/qt/QtGui -isystem /usr/include/qt/QtSerialPort -isystem /usr/include/qt/QtCore -I. -isystem /usr/include/libdrm -I. -I/usr/lib/qt/mkspecs/linux-g++
+INCPATH       = -I../server_st -I. -isystem /usr/include/qt -isystem /usr/include/qt/QtWidgets -isystem /usr/include/qt/QtGui -isystem /usr/include/qt/QtSerialPort -isystem /usr/include/qt/QtNetwork -isystem /usr/include/qt/QtCore -I. -isystem /usr/include/libdrm -I. -I/usr/lib/qt/mkspecs/linux-g++
 QMAKE         = /bin/qmake-qt5
 DEL_FILE      = rm -f
 CHK_DIR_EXISTS= test -d
@@ -36,7 +36,7 @@ DISTNAME      = server_st1.0.0
 DISTDIR = /home/alex/Work/OpenSource/startrack/build-server_st-Arch-Debug/.tmp/server_st1.0.0
 LINK          = g++
 LFLAGS        = 
-LIBS          = $(SUBLIBS) -lQt5Widgets -lQt5Gui -lQt5SerialPort -lQt5Core -lGL -lpthread 
+LIBS          = $(SUBLIBS) -lQt5Widgets -lQt5Gui -lQt5SerialPort -lQt5Network -lQt5Core -lGL -lpthread 
 AR            = ar cqs
 RANLIB        = 
 SED           = sed
@@ -49,10 +49,14 @@ OBJECTS_DIR   = ./
 ####### Files
 
 SOURCES       = ../server_st/main.cpp \
-		../server_st/mainwindow.cpp moc_mainwindow.cpp
+		../server_st/mainwindow.cpp \
+		../server_st/AngleSpinBox.cpp moc_mainwindow.cpp \
+		moc_AngleSpinBox.cpp
 OBJECTS       = main.o \
 		mainwindow.o \
-		moc_mainwindow.o
+		AngleSpinBox.o \
+		moc_mainwindow.o \
+		moc_AngleSpinBox.o
 DIST          = /usr/lib/qt/mkspecs/features/spec_pre.prf \
 		/usr/lib/qt/mkspecs/common/unix.conf \
 		/usr/lib/qt/mkspecs/common/linux.conf \
@@ -232,8 +236,12 @@ DIST          = /usr/lib/qt/mkspecs/features/spec_pre.prf \
 		/usr/lib/qt/mkspecs/features/exceptions.prf \
 		/usr/lib/qt/mkspecs/features/yacc.prf \
 		/usr/lib/qt/mkspecs/features/lex.prf \
-		../server_st/server_st.pro ../server_st/mainwindow.h ../server_st/main.cpp \
-		../server_st/mainwindow.cpp
+		../server_st/server_st.pro ../server_st/mainwindow.h \
+		../server_st/stell_msg.h \
+		../server_st/star_math.h \
+		../server_st/AngleSpinBox.hpp ../server_st/main.cpp \
+		../server_st/mainwindow.cpp \
+		../server_st/AngleSpinBox.cpp
 QMAKE_TARGET  = server_st
 DESTDIR       = 
 TARGET        = server_st
@@ -428,6 +436,7 @@ Makefile: ../server_st/server_st.pro /usr/lib/qt/mkspecs/linux-g++/qmake.conf /u
 		/usr/lib/libQt5Widgets.prl \
 		/usr/lib/libQt5Gui.prl \
 		/usr/lib/libQt5SerialPort.prl \
+		/usr/lib/libQt5Network.prl \
 		/usr/lib/libQt5Core.prl
 	$(QMAKE) -o Makefile ../server_st/server_st.pro -spec linux-g++ CONFIG+=debug CONFIG+=qml_debug
 /usr/lib/qt/mkspecs/features/spec_pre.prf:
@@ -613,6 +622,7 @@ Makefile: ../server_st/server_st.pro /usr/lib/qt/mkspecs/linux-g++/qmake.conf /u
 /usr/lib/libQt5Widgets.prl:
 /usr/lib/libQt5Gui.prl:
 /usr/lib/libQt5SerialPort.prl:
+/usr/lib/libQt5Network.prl:
 /usr/lib/libQt5Core.prl:
 qmake: FORCE
 	@$(QMAKE) -o Makefile ../server_st/server_st.pro -spec linux-g++ CONFIG+=debug CONFIG+=qml_debug
@@ -629,8 +639,8 @@ distdir: FORCE
 	@test -d $(DISTDIR) || mkdir -p $(DISTDIR)
 	$(COPY_FILE) --parents $(DIST) $(DISTDIR)/
 	$(COPY_FILE) --parents /usr/lib/qt/mkspecs/features/data/dummy.cpp $(DISTDIR)/
-	$(COPY_FILE) --parents ../server_st/mainwindow.h $(DISTDIR)/
-	$(COPY_FILE) --parents ../server_st/main.cpp ../server_st/mainwindow.cpp $(DISTDIR)/
+	$(COPY_FILE) --parents ../server_st/mainwindow.h ../server_st/stell_msg.h ../server_st/star_math.h ../server_st/AngleSpinBox.hpp $(DISTDIR)/
+	$(COPY_FILE) --parents ../server_st/main.cpp ../server_st/mainwindow.cpp ../server_st/AngleSpinBox.cpp $(DISTDIR)/
 	$(COPY_FILE) --parents ../server_st/mainwindow.ui $(DISTDIR)/
 
 
@@ -663,14 +673,20 @@ compiler_moc_predefs_clean:
 moc_predefs.h: /usr/lib/qt/mkspecs/features/data/dummy.cpp
 	g++ -pipe -march=native -std=c++14 -Wall -march=native -frtti -fexceptions -Werror=return-type -Werror=overloaded-virtual -Wctor-dtor-privacy -Werror=delete-non-virtual-dtor -Werror=strict-aliasing -fstrict-aliasing -g -std=gnu++1y -Wall -W -dM -E -o moc_predefs.h /usr/lib/qt/mkspecs/features/data/dummy.cpp
 
-compiler_moc_header_make_all: moc_mainwindow.cpp
+compiler_moc_header_make_all: moc_mainwindow.cpp moc_AngleSpinBox.cpp
 compiler_moc_header_clean:
-	-$(DEL_FILE) moc_mainwindow.cpp
+	-$(DEL_FILE) moc_mainwindow.cpp moc_AngleSpinBox.cpp
 moc_mainwindow.cpp: ../server_st/saveable_widget.h \
+		../server_st/runners.h \
 		../server_st/mainwindow.h \
 		moc_predefs.h \
 		/usr/bin/moc
-	/usr/bin/moc $(DEFINES) --include ./moc_predefs.h -I/usr/lib/qt/mkspecs/linux-g++ -I/home/alex/Work/OpenSource/startrack/server_st -I/usr/include/qt -I/usr/include/qt/QtWidgets -I/usr/include/qt/QtGui -I/usr/include/qt/QtSerialPort -I/usr/include/qt/QtCore -I. -I/usr/include/c++/6.3.1 -I/usr/include/c++/6.3.1/x86_64-pc-linux-gnu -I/usr/include/c++/6.3.1/backward -I/usr/lib/gcc/x86_64-pc-linux-gnu/6.3.1/include -I/usr/local/include -I/usr/lib/gcc/x86_64-pc-linux-gnu/6.3.1/include-fixed -I/usr/include ../server_st/mainwindow.h -o moc_mainwindow.cpp
+	/usr/bin/moc $(DEFINES) --include ./moc_predefs.h -I/usr/lib/qt/mkspecs/linux-g++ -I/home/alex/Work/OpenSource/startrack/server_st -I/usr/include/qt -I/usr/include/qt/QtWidgets -I/usr/include/qt/QtGui -I/usr/include/qt/QtSerialPort -I/usr/include/qt/QtNetwork -I/usr/include/qt/QtCore -I. -I/usr/include/c++/6.3.1 -I/usr/include/c++/6.3.1/x86_64-pc-linux-gnu -I/usr/include/c++/6.3.1/backward -I/usr/lib/gcc/x86_64-pc-linux-gnu/6.3.1/include -I/usr/local/include -I/usr/lib/gcc/x86_64-pc-linux-gnu/6.3.1/include-fixed -I/usr/include ../server_st/mainwindow.h -o moc_mainwindow.cpp
+
+moc_AngleSpinBox.cpp: ../server_st/AngleSpinBox.hpp \
+		moc_predefs.h \
+		/usr/bin/moc
+	/usr/bin/moc $(DEFINES) --include ./moc_predefs.h -I/usr/lib/qt/mkspecs/linux-g++ -I/home/alex/Work/OpenSource/startrack/server_st -I/usr/include/qt -I/usr/include/qt/QtWidgets -I/usr/include/qt/QtGui -I/usr/include/qt/QtSerialPort -I/usr/include/qt/QtNetwork -I/usr/include/qt/QtCore -I. -I/usr/include/c++/6.3.1 -I/usr/include/c++/6.3.1/x86_64-pc-linux-gnu -I/usr/include/c++/6.3.1/backward -I/usr/lib/gcc/x86_64-pc-linux-gnu/6.3.1/include -I/usr/local/include -I/usr/lib/gcc/x86_64-pc-linux-gnu/6.3.1/include-fixed -I/usr/include ../server_st/AngleSpinBox.hpp -o moc_AngleSpinBox.cpp
 
 compiler_moc_source_make_all:
 compiler_moc_source_clean:
@@ -678,7 +694,8 @@ compiler_uic_make_all: ui_mainwindow.h
 compiler_uic_clean:
 	-$(DEL_FILE) ui_mainwindow.h
 ui_mainwindow.h: ../server_st/mainwindow.ui \
-		/usr/bin/uic
+		/usr/bin/uic \
+		../server_st/AngleSpinBox.hpp
 	/usr/bin/uic ../server_st/mainwindow.ui -o ui_mainwindow.h
 
 compiler_yacc_decl_make_all:
@@ -692,16 +709,28 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean compiler_ui
 ####### Compile
 
 main.o: ../server_st/main.cpp ../server_st/mainwindow.h \
-		../server_st/saveable_widget.h
+		../server_st/saveable_widget.h \
+		../server_st/runners.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o main.o ../server_st/main.cpp
 
 mainwindow.o: ../server_st/mainwindow.cpp ../server_st/mainwindow.h \
 		../server_st/saveable_widget.h \
-		ui_mainwindow.h
+		../server_st/runners.h \
+		ui_mainwindow.h \
+		../arduino_st/simple_comm.h \
+		../server_st/union_cast.h \
+		../server_st/stell_msg.h \
+		../server_st/star_math.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o mainwindow.o ../server_st/mainwindow.cpp
+
+AngleSpinBox.o: ../server_st/AngleSpinBox.cpp ../server_st/AngleSpinBox.hpp
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o AngleSpinBox.o ../server_st/AngleSpinBox.cpp
 
 moc_mainwindow.o: moc_mainwindow.cpp 
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o moc_mainwindow.o moc_mainwindow.cpp
+
+moc_AngleSpinBox.o: moc_AngleSpinBox.cpp 
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o moc_AngleSpinBox.o moc_AngleSpinBox.cpp
 
 ####### Install
 

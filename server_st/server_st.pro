@@ -4,9 +4,8 @@
 #
 #-------------------------------------------------
 
-QT       += core gui
-
-greaterThan(QT_MAJOR_VERSION, 4): QT += widgets serialport
+QT       += core gui serialport network
+greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 TARGET = server_st
 TEMPLATE = app
@@ -22,7 +21,6 @@ DEFINES += QT_DEPRECATED_WARNINGS
 # You can also select to disable deprecated APIs only up to a certain version of Qt.
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 unix:!macx:QMAKE_CXXFLAGS +=  -march=native
-
 QMAKE_CXXFLAGS +=  -std=c++14 -Wall -march=native -frtti -fexceptions -Werror=return-type -Werror=overloaded-virtual
 QMAKE_CXXFLAGS +=  -Wctor-dtor-privacy -Werror=delete-non-virtual-dtor -Werror=strict-aliasing -fstrict-aliasing
 
@@ -36,8 +34,12 @@ macx: QMAKE_MACOSX_DEPLOYMENT_TARGET=10.10
 
 
 SOURCES += main.cpp\
-        mainwindow.cpp
+        mainwindow.cpp \
+    AngleSpinBox.cpp
 
-HEADERS  += mainwindow.h
+HEADERS  += mainwindow.h \
+    stell_msg.h \
+    star_math.h \
+    AngleSpinBox.hpp
 
 FORMS    += mainwindow.ui

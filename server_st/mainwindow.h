@@ -7,6 +7,9 @@
 #include "runners.h"
 #include <memory>
 #include <atomic>
+#include <QTcpServer>
+#include <QPointer>
+#include <QTcpSocket>
 
 namespace Ui {
     class MainWindow;
@@ -28,13 +31,15 @@ private slots:
     void on_cbPorts_currentIndexChanged(int);
     void arduinoRead(float az_rad, float el_rad);
     void on_pushButton_2_clicked();
-
+    void onStellariumDataReady();
 private:
     Ui::MainWindow *ui;
     utility::runner_t comThread;
     std::atomic_flag skipWrite;
     float volatile gaz;
     float volatile gel;
+    std::shared_ptr<QTcpServer> server;
+    QPointer<QTcpSocket> stellarium;
     void startComPoll();
     void write(float az_rad, float el_rad);
 signals:
