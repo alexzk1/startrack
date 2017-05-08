@@ -146,7 +146,7 @@ public:
 
     void retranslateUi(QMainWindow *MainWindow)
     {
-        MainWindow->setWindowTitle(QApplication::translate("MainWindow", "StarTrack Arduino<->Stellarium Connector", Q_NULLPTR));
+        MainWindow->setWindowTitle(QApplication::translate("MainWindow", "Arduino<->Stellarium Connector", Q_NULLPTR));
         label->setText(QApplication::translate("MainWindow", "&Device Port:", Q_NULLPTR));
         pushButton->setText(QApplication::translate("MainWindow", "&Refresh", Q_NULLPTR));
         label_2->setText(QApplication::translate("MainWindow", "Azimuth:", Q_NULLPTR));

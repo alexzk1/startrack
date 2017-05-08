@@ -14,7 +14,7 @@
    <enum>Qt::NoContextMenu</enum>
   </property>
   <property name="windowTitle">
-   <string>StarTrack Arduino&lt;-&gt;Stellarium Connector</string>
+   <string>Arduino&lt;-&gt;Stellarium Connector</string>
   </property>
   <property name="unifiedTitleAndToolBarOnMac">
    <bool>true</bool>
