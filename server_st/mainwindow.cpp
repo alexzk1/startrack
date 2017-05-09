@@ -38,15 +38,25 @@ MainWindow::MainWindow(QWidget *parent) :
     server = std::make_shared<QTcpServer>(nullptr);
     connect(server.get(), &QTcpServer::newConnection, this, [this]()
     {
-        if (stellarium) //holding only 1 connection to server
-            stellarium->disconnectFromHost();
+        static uint64_t connCounter = 0;
+        auto dumb = connCounter++;
+        QPointer<QTcpSocket> tmp = stellarium[dumb] = server->nextPendingConnection();
+        connect(tmp, &QAbstractSocket::disconnected, this, [this, dumb, tmp]()
+        {
+            if (stellarium.count(dumb))
+                stellarium.erase(dumb);
 
-        stellarium = server->nextPendingConnection();
-        connect(stellarium, &QAbstractSocket::disconnected,
-                stellarium, &QObject::deleteLater);
+            if (tmp)
+                tmp->deleteLater();
+        }, Qt::QueuedConnection);
 
-        connect(stellarium, &QTcpSocket::readyRead, this, &MainWindow::onStellariumDataReady);
-    });
+        connect(tmp, &QTcpSocket::readyRead, this, [this, tmp]()
+        {
+            if (tmp)
+                onStellariumDataReady(tmp);
+        }, Qt::QueuedConnection);
+
+    }, Qt::QueuedConnection);
     server->listen(QHostAddress::Any, 10001);
 
     on_pushButton_clicked();
@@ -118,13 +128,13 @@ void MainWindow::arduinoRead(float az_rad, float el_rad)
 {
     ui->lblAz-> setText(QString("%1").arg(degrees(az_rad)));
     ui->lblAlt->setText(QString("%1").arg(degrees(el_rad)));
-    if (readyToTrackMap && stellarium)
+    if (readyToTrackMap && stellarium.size())
     {
         //writting alt/az from arduino to stellarium
         double ra, dec;
         convertAZ_RA(static_cast<double>(az_rad), static_cast<double>(el_rad), ui->latBox->valueRadians(), ui->lonBox->valueRadians(), ra, dec);
         //qDebug() << "RA(hrs): "<< degrees(ra) / 15 << " DEC(deg): "<< degrees(dec);
-        if (stellarium)
+        if (stellarium.size())
         {
 
             ToStellMessage msg;
@@ -136,7 +146,8 @@ void MainWindow::arduinoRead(float az_rad, float el_rad)
             //from ServerDummy.cpp
             msg.msg.ra_int  = static_cast<decltype(msg.msg.ra_int)>(floor(0.5   +  ra * static_cast<uint64_t>(0x80000000)/M_PI));
             msg.msg.dec_int = static_cast<decltype(msg.msg.dec_int)>(floor(0.5 +  dec * static_cast<uint64_t>(0x80000000)/M_PI)); //yes, uint64_t or u get negated dec
-            stellarium->write(msg.buffer, sizeof(ToStellMessage));
+            for (const auto & s : stellarium)
+                s.second->write(msg.buffer, sizeof(ToStellMessage));
         }
     }
 }
@@ -215,9 +226,9 @@ int64_t MainWindow::getMicrosNow()
     return duration_cast<microseconds>(system_clock::now().time_since_epoch()).count();
 }
 
-void MainWindow::onStellariumDataReady()
+void MainWindow::onStellariumDataReady(QTcpSocket *p)
 {
-    auto all = stellarium->readAll();
+    auto all = p->readAll();
     u_int16_t size = *reinterpret_cast<uint16_t*>(all.data()); //size counts itself, but we dont place it in packet
     //qDebug() << "Packet Size: "<<size;
     if (!(size < 4 || size > all.size() || size - 2 > sizeof(StellBasicMessage)))

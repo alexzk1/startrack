@@ -7,6 +7,7 @@
 #include "runners.h"
 #include <memory>
 #include <atomic>
+#include <map>
 #include <QTcpServer>
 #include <QPointer>
 #include <QTcpSocket>
@@ -30,7 +31,7 @@ private slots:
     void on_pushButton_clicked();
     void on_cbPorts_currentIndexChanged(int);
     void arduinoRead(float az_rad, float el_rad);
-    void onStellariumDataReady();
+
     void on_cbNight_toggled(bool checked);
 
 private:
@@ -40,12 +41,13 @@ private:
     float volatile gaz;
     float volatile gel;
     std::shared_ptr<QTcpServer> server;
-    QPointer<QTcpSocket> stellarium;
+    std::map<uint64_t, QPointer<QTcpSocket>> stellarium; //decided to have many possible connections, each one can track or rule device
     std::atomic<bool> readyToTrackMap;
 
     void startComPoll();
     void writeToArduino(float az_rad, float el_rad);
     int64_t getMicrosNow();
+    void onStellariumDataReady(QTcpSocket *p);
 signals:
     void onArduinoRead(float az_rad, float el_rad);
 };
