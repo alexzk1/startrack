@@ -9,6 +9,7 @@ url='https://github.com/alexzk1/startrack'
 license=('MIT')
 depends=(
 qt5-base
+qt5-serialport
 )
 
 makedepends=(
