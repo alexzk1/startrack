@@ -68,6 +68,7 @@ namespace my_helpers
             return nextIndex(index, buff_size - delta);
         }
     public:
+        using values_type = T;
         Circular(T def)
         {
             clear(def);
@@ -128,15 +129,6 @@ namespace my_helpers
         }
     };
 
-    template <class T>
-    int8_t sign(T val)
-    {
-        if (isZero(val))
-            return 0;
-        if (val < static_cast<T>(0))
-            return -1;
-        return 1;
-    }
 
     template <class T>
     T removeRotRad(T value)
