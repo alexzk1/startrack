@@ -1,0 +1,39 @@
+# Maintainer: Alex <alexzkhr public at gmail dot com>
+
+pkgname=st_server_qt
+pkgver=r18.22ac6f4
+pkgrel=1
+pkgdesc='The bridge between arduino and stellarium which works as GoTo telescope server. PC software.'
+arch=('i686' 'x86_64')
+url='https://github.com/alexzk1/startrack'
+license=('MIT')
+depends=(
+qt5-base
+)
+
+makedepends=(
+git
+)
+source=(
+'git://github.com/alexzk1/startrack.git'
+)
+sha256sums=('SKIP')
+_gitname='startrack'
+prepare() {    
+   cd $_gitname/server_st
+}
+
+pkgver() {
+  cd $_gitname  
+  printf "r%s.%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+build() {
+  cd $_gitname/server_st
+  qmake
+  make
+}
+package() {
+  cd $_gitname/server_st
+  #make INSTALL_ROOT="$pkgdir" install  
+  install -Dm755 "$srcdir/$_gitname/server_st/server_st" "$pkgdir"/usr/bin/startrack_telescope_server
+}
