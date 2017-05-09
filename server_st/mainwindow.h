@@ -30,7 +30,6 @@ private slots:
     void on_pushButton_clicked();
     void on_cbPorts_currentIndexChanged(int);
     void arduinoRead(float az_rad, float el_rad);
-    void on_pushButton_2_clicked();
     void onStellariumDataReady();
 private:
     Ui::MainWindow *ui;
@@ -40,8 +39,11 @@ private:
     float volatile gel;
     std::shared_ptr<QTcpServer> server;
     QPointer<QTcpSocket> stellarium;
+    std::atomic<bool> readyToTrackMap;
+
     void startComPoll();
-    void write(float az_rad, float el_rad);
+    void writeToArduino(float az_rad, float el_rad);
+    int64_t getMicrosNow();
 signals:
     void onArduinoRead(float az_rad, float el_rad);
 };

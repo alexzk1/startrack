@@ -21,7 +21,8 @@ MainWindow::MainWindow(QWidget *parent) :
     comThread(nullptr),
     skipWrite(ATOMIC_FLAG_INIT),
     gaz(0), gel(0),
-    server(nullptr)
+    server(nullptr),
+    readyToTrackMap(false)
 {
     ui->setupUi(this);
     setWindowFlags( (windowFlags() | Qt::CustomizeWindowHint) & ~Qt::WindowMaximizeButtonHint);
@@ -89,6 +90,7 @@ void MainWindow::recurseWrite(QSettings &settings, QObject *object)
 
 void MainWindow::on_pushButton_clicked()
 {
+    readyToTrackMap = false;
     comThread.reset();
     ui->cbPorts->clear();
     ui->cbPorts->addItem("Select to Stop");
@@ -112,6 +114,27 @@ void MainWindow::arduinoRead(float az_rad, float el_rad)
 {
     ui->lblAz-> setText(QString("%1").arg(degrees(az_rad)));
     ui->lblAlt->setText(QString("%1").arg(degrees(el_rad)));
+    if (readyToTrackMap && stellarium)
+    {
+        //writting alt/az from arduino to stellarium
+        double ra, dec;
+        convertAZ_RA(static_cast<double>(az_rad), static_cast<double>(el_rad), ui->latBox->valueRadians(), ui->lonBox->valueRadians(), ra, dec);
+        //qDebug() << "RA(hrs): "<< degrees(ra) / 15 << " DEC(deg): "<< degrees(dec);
+        if (stellarium)
+        {
+
+            ToStellMessage msg;
+            msg.msg.size = sizeof(ToStellMessage);
+            msg.msg.type   = 0;
+            msg.msg.status = 0;
+            msg.msg.clientMicros = getMicrosNow();
+
+            //from ServerDummy.cpp
+            msg.msg.ra_int  = static_cast<decltype(msg.msg.ra_int)>(floor(0.5   +  ra * static_cast<uint64_t>(0x80000000)/M_PI));
+            msg.msg.dec_int = static_cast<decltype(msg.msg.dec_int)>(floor(0.5 +  dec * static_cast<uint64_t>(0x80000000)/M_PI)); //yes, uint64_t or u get negated dec
+            stellarium->write(msg.buffer, sizeof(ToStellMessage));
+        }
+    }
 }
 
 void MainWindow::startComPoll()
@@ -133,7 +156,7 @@ void MainWindow::startComPoll()
             std::this_thread::sleep_for(15s); // device gets reset, have to wait
             port.setDataTerminalReady(false); //disable autoreset of device
             skipWrite.test_and_set();
-
+            readyToTrackMap = false;
             while (!(*stop))
             {
                 if (op) //if failed to open, still should start thread which does nothing
@@ -145,8 +168,11 @@ void MainWindow::startComPoll()
                     msg.message.Command = (shouldSet)?'S':'R';
                     port.write(header.c_str(), static_cast<int>(header.size()));
                     port.write(msg.buffer, sizeof(msg.buffer));
-                    if (!port.waitForBytesWritten(5000))
+                    if (*stop || !port.waitForBytesWritten(5000))
                         break;
+
+                    //once we calibrated using star on map we can keep tracking it
+                    readyToTrackMap = readyToTrackMap || shouldSet;
                     if (!shouldSet)
                     {
                         const static auto msz = static_cast<decltype (port.bytesAvailable())>(sizeof(msg.message.value));
@@ -164,7 +190,7 @@ void MainWindow::startComPoll()
                 }
                 else
                     break;
-                std::this_thread::sleep_for(1500ms);
+                std::this_thread::sleep_for(500ms);
             }
             if (!(*stop))
                 std::this_thread::sleep_for(5000ms);
@@ -172,25 +198,17 @@ void MainWindow::startComPoll()
     });
 }
 
-void MainWindow::write(float az_rad, float el_rad)
+void MainWindow::writeToArduino(float az_rad, float el_rad)
 {
     gaz = az_rad;
     gel = el_rad;
     skipWrite.clear();
 }
 
-void MainWindow::on_pushButton_2_clicked()
+int64_t MainWindow::getMicrosNow()
 {
-    write(3.1415f, 0);
-    /*
-     *
-     *   QByteArray block;
-    QDataStream out(&block, QIODevice::WriteOnly);
-    out.setVersion(QDataStream::Qt_4_0);
-
-    out << fortunes.at(qrand() % fortunes.size());
-
-*/
+    using namespace std::chrono;
+    return duration_cast<microseconds>(system_clock::now().time_since_epoch()).count();
 }
 
 void MainWindow::onStellariumDataReady()
@@ -207,10 +225,10 @@ void MainWindow::onStellariumDataReady()
         //took from ServerDummy.cpp, it is RADIANS now as we want
         const double ra  = msg.msg.ra_int  * (M_PI/static_cast<uint64_t>(0x80000000));
         const double dec = msg.msg.dec_int * (M_PI/static_cast<uint64_t>(0x80000000));
-        qDebug() << "RA(hrs): "<< degrees(ra) / 15 << " DEC(deg): "<< degrees(dec);
+       // qDebug() << "RA(hrs): "<< degrees(ra) / 15 << " DEC(deg): "<< degrees(dec);
         double az, alt;
-        convert(ra, dec, ui->latBox->valueRadians(), ui->lonBox->valueRadians(), az, alt);
-        qDebug() << "Az(deg): "<< degrees(az)<<" ALT(deg): "<<degrees(alt);
-        write(static_cast<float>(az), static_cast<float>(alt));
+        convertRA_AZ(ra, dec, ui->latBox->valueRadians(), ui->lonBox->valueRadians(), az, alt);
+        //qDebug() << "Az(deg): "<< degrees(az)<<" ALT(deg): "<<degrees(alt);
+        writeToArduino(static_cast<float>(az), static_cast<float>(alt));
     }
 }

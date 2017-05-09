@@ -17,4 +17,4 @@ what and where I see.
 * pick the same star in steallrium and press ctrl + 1 (or any other number associated with connection, don't miss with alt+1 which do something else and fake for us)
 * now device shows exact alt/azimut what was in steallarium and keeps tracking moves further
 
-3. Todo: back-track on map
+3. It back tracks on map, once you have aligned device by any star it will start tracking on stellarium map any moves of the telescope.

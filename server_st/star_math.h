@@ -24,7 +24,8 @@ inline T radians(T deg)
     return deg * static_cast<T>(DEG_TO_RAD);
 };
 
-//reference: http://www.stargazing.net/kepler/altaz.html
+//references: http://www.stargazing.net/kepler/altaz.html
+//http://star-www.st-and.ac.uk/~fv/webnotes/chapter7.htm
 //https://en.wikipedia.org/wiki/Sidereal_time
 //sideral second != solar second(regular)!!!!
 
@@ -64,7 +65,7 @@ double inline getLSTDegrees(double longitudeDegrees)
     return lst;
 }
 
-void inline convert(const double ra_rad, const double dec_rad, const double latitude_rad, const double longitude_rad, double& azimuth_rad, double& alt_rad)
+void inline convertRA_AZ(const double ra_rad, const double dec_rad, const double latitude_rad, const double longitude_rad, double& azimuth_rad, double& alt_rad)
 {
     auto lst_rad = radians(getLSTDegrees(degrees(longitude_rad)));
     auto HA = lst_rad - ra_rad;
@@ -75,6 +76,15 @@ void inline convert(const double ra_rad, const double dec_rad, const double lati
 
     const auto a = acos((sin(dec_rad) - sin_alt * sin(latitude_rad)) / (cos(alt_rad) * cos(latitude_rad)));
     azimuth_rad = (sin(HA) < 0) ? a : (2 * M_PI - a);
+}
+
+//http://star-www.st-and.ac.uk/~fv/webnotes/chapter7.htm
+void inline convertAZ_RA(const double azimuth_rad, const double alt_rad, const double latitude_rad, const double longitude_rad, double& ra_rad, double& dec_rad)
+{
+    double sin_th = sin(alt_rad) * sin(latitude_rad) + cos(alt_rad) * cos(latitude_rad) * cos (azimuth_rad);
+    dec_rad = asin(sin_th);
+    double sin_H  = -sin(azimuth_rad) * cos(alt_rad) / cos(dec_rad);
+    ra_rad = radians(getLSTDegrees(degrees(longitude_rad))) - asin(sin_H);
 }
 
 #endif // STAR_MATH_H
