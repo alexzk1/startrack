@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/">
+        <file>icons/solar-system-icon.png</file>
+    </qresource>
+</RCC>

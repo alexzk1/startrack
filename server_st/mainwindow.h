@@ -31,6 +31,8 @@ private slots:
     void on_cbPorts_currentIndexChanged(int);
     void arduinoRead(float az_rad, float el_rad);
     void onStellariumDataReady();
+    void on_cbNight_toggled(bool checked);
+
 private:
     Ui::MainWindow *ui;
     utility::runner_t comThread;

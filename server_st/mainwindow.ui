@@ -16,6 +16,10 @@
   <property name="windowTitle">
    <string>Arduino&lt;-&gt;Stellarium Connector</string>
   </property>
+  <property name="windowIcon">
+   <iconset resource="resources.qrc">
+    <normaloff>:/icons/solar-system-icon.png</normaloff>:/icons/solar-system-icon.png</iconset>
+  </property>
   <property name="unifiedTitleAndToolBarOnMac">
    <bool>true</bool>
   </property>
@@ -108,25 +112,20 @@
     <item row="7" column="1">
      <widget class="AngleSpinBox" name="lonBox"/>
     </item>
+    <item row="8" column="0" colspan="2">
+     <widget class="QCheckBox" name="cbNight">
+      <property name="toolTip">
+       <string>Night Mode - all red (F12)</string>
+      </property>
+      <property name="text">
+       <string>&amp;Night Mode</string>
+      </property>
+      <property name="shortcut">
+       <string>F12</string>
+      </property>
+     </widget>
+    </item>
    </layout>
-  </widget>
-  <widget class="QMenuBar" name="menuBar">
-   <property name="geometry">
-    <rect>
-     <x>0</x>
-     <y>0</y>
-     <width>358</width>
-     <height>22</height>
-    </rect>
-   </property>
-  </widget>
-  <widget class="QToolBar" name="mainToolBar">
-   <attribute name="toolBarArea">
-    <enum>TopToolBarArea</enum>
-   </attribute>
-   <attribute name="toolBarBreak">
-    <bool>false</bool>
-   </attribute>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
  </widget>
@@ -138,6 +137,8 @@
    <header location="global">AngleSpinBox.hpp</header>
   </customwidget>
  </customwidgets>
- <resources/>
+ <resources>
+  <include location="resources.qrc"/>
+ </resources>
  <connections/>
 </ui>

@@ -15,6 +15,8 @@
 
 Q_DECLARE_METATYPE(QSerialPortInfo);
 
+static const QString nightScheme = "QWidget {background-color: #660000;}";
+
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow),
@@ -77,6 +79,7 @@ void MainWindow::recurseRead(QSettings &settings, QObject *object)
     ui->cbPorts->setCurrentText(ps);
     ui->lonBox->setRadians(settings.value("Longitude", 0).toDouble());
     ui->latBox->setRadians(settings.value("Latitude", 0).toDouble());
+    ui->cbNight->setChecked(settings.value("Night", false).toBool());
 }
 
 void MainWindow::recurseWrite(QSettings &settings, QObject *object)
@@ -86,6 +89,7 @@ void MainWindow::recurseWrite(QSettings &settings, QObject *object)
     settings.setValue("COMPort", ps);
     settings.setValue("Longitude", ui->lonBox->valueRadians());
     settings.setValue("Latitude",  ui->latBox->valueRadians());
+    settings.setValue("Night", ui->cbNight->isChecked());
 }
 
 void MainWindow::on_pushButton_clicked()
@@ -231,4 +235,12 @@ void MainWindow::onStellariumDataReady()
         //qDebug() << "Az(deg): "<< degrees(az)<<" ALT(deg): "<<degrees(alt);
         writeToArduino(static_cast<float>(az), static_cast<float>(alt));
     }
+}
+
+void MainWindow::on_cbNight_toggled(bool checked)
+{
+    if (checked)
+        qApp->setStyleSheet(nightScheme);
+    else
+        qApp->setStyleSheet("");
 }
