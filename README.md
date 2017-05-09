@@ -3,6 +3,14 @@ This project aims couple things:
 2. FIX stupid child C/C++ mixes  met into arduino libs (believe or not, C++ templates has less bytes compiled then pure C).
 3. I need alt/azimuth tracker for the telescope for the Dobson mount.
 4. Very good if it will automatically show target in stellarium.
+5. It seems that all my automation programs (this one + astroed +qtcampp) will form automated journaling and processing system some day - kinda - just point and picture, all records and marks will be automated.
+
+TODO:
+* send full sensor's qutarnium to the PC for the record. It can help with camera rotation detection.
+* store all data(ra, dec, qutarnium) into sql-lite db (once per 5seconds or so). Each new observation day makes new file/db.
+* need a scripts, which will categorize that sql db and pictures from camera in folder automatically on desktop (initially DB is on laptop).
+* addition to astroed - put all that data in use together in picture processing
+* add some query to somewhere, which will reveal star pictured by that RA/DEC, not sure if stellarium can do that automatically
 
 What is done:
 1. It tracks. Connected to telescope, pointed to Polar Star,then MOVED 
