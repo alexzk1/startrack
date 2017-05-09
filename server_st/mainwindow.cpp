@@ -124,34 +124,6 @@ void MainWindow::on_cbPorts_currentIndexChanged(int index)
         comThread.reset();
 }
 
-void MainWindow::arduinoRead(float az_rad, float el_rad)
-{
-    ui->lblAz-> setText(QString("%1").arg(degrees(az_rad)));
-    ui->lblAlt->setText(QString("%1").arg(degrees(el_rad)));
-    if (readyToTrackMap && stellarium.size())
-    {
-        //writting alt/az from arduino to stellarium
-        double ra, dec;
-        convertAZ_RA(static_cast<double>(az_rad), static_cast<double>(el_rad), ui->latBox->valueRadians(), ui->lonBox->valueRadians(), ra, dec);
-        //qDebug() << "RA(hrs): "<< degrees(ra) / 15 << " DEC(deg): "<< degrees(dec);
-        if (stellarium.size())
-        {
-
-            ToStellMessage msg;
-            msg.msg.size = sizeof(ToStellMessage);
-            msg.msg.type   = 0;
-            msg.msg.status = 0;
-            msg.msg.clientMicros = getMicrosNow();
-
-            //from ServerDummy.cpp
-            msg.msg.ra_int  = static_cast<decltype(msg.msg.ra_int)>(floor(0.5   +  ra * static_cast<uint64_t>(0x80000000)/M_PI));
-            msg.msg.dec_int = static_cast<decltype(msg.msg.dec_int)>(floor(0.5 +  dec * static_cast<uint64_t>(0x80000000)/M_PI)); //yes, uint64_t or u get negated dec
-            for (const auto & s : stellarium)
-                s.second->write(msg.buffer, sizeof(ToStellMessage));
-        }
-    }
-}
-
 void MainWindow::startComPoll()
 {
     comThread = utility::startNewRunner([this](auto stop)
@@ -224,6 +196,35 @@ int64_t MainWindow::getMicrosNow()
 {
     using namespace std::chrono;
     return duration_cast<microseconds>(system_clock::now().time_since_epoch()).count();
+}
+
+void MainWindow::arduinoRead(float az_rad, float el_rad)
+{
+    ui->lblAz-> setText(QString("%1").arg(degrees(az_rad)));
+    ui->lblAlt->setText(QString("%1").arg(degrees(el_rad)));
+    if (readyToTrackMap && stellarium.size())
+    {
+        //writting alt/az from arduino to stellarium
+        double ra, dec;
+        convertAZ_RA(static_cast<double>(az_rad), static_cast<double>(el_rad), ui->latBox->valueRadians(), ui->lonBox->valueRadians(), ra, dec);
+        //qDebug() << "RA(hrs): "<< degrees(ra) / 15 << " DEC(deg): "<< degrees(dec);
+        if (stellarium.size())
+        {
+
+            ToStellMessage msg;
+            msg.msg.size = sizeof(ToStellMessage);
+            msg.msg.type   = 0;
+            msg.msg.status = 0;
+            msg.msg.clientMicros = getMicrosNow();
+
+            //from ServerDummy.cpp
+            msg.msg.ra_int  = static_cast<decltype(msg.msg.ra_int)>(floor(0.5   +  ra * static_cast<uint64_t>(0x80000000)/M_PI));
+            msg.msg.dec_int = static_cast<decltype(msg.msg.dec_int)>(floor(0.5 +  dec * static_cast<uint64_t>(0x80000000)/M_PI)); //yes, uint64_t or u get negated dec
+            for (const auto & s : stellarium)
+                if (s.second)
+                    s.second->write(msg.buffer, sizeof(ToStellMessage));
+        }
+    }
 }
 
 void MainWindow::onStellariumDataReady(QTcpSocket *p)
