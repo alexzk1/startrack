@@ -158,9 +158,9 @@ void setup()
     }
 }
 
-float az0 = 0;
-float el0 = 0;
-
+static float az0 = 0;
+static float el0 = 0;
+static ard_st::Message msg;
 
 float getAz(float az1)
 {
@@ -201,6 +201,7 @@ void readSensor(my_helpers::Circular<decltype(az0), READINGS_AMOUNT_AVR>& az, my
 
                 mpu.getFIFOBytes(fifoBuffer, packetSize);
                 fifoCount -= packetSize;
+                mpu.dmpGetQuaternion(msg.message.value.vals.current_quat, fifoBuffer);
                 mpu.dmpGetQuaternion(&q, fifoBuffer); q.normalize();
                 mpu.dmpGetGravity(&gravity, &q); gravity.normalize();
 
@@ -255,7 +256,7 @@ void loop()
     {
         while (Serial.available() >= 3 + 9)
         {
-            static ard_st::Message msg;
+
             if (Serial.find(MESSAGE_HDR))
             {
                 //computer makes S/R request, and arduino just responds

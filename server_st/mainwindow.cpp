@@ -171,6 +171,11 @@ void MainWindow::startComPoll()
                             float az, el;
                             readAzEl(msg.message.value, &az, &el);
                             //qDebug() <<"Az = " <<degrees(az) << ";  El = "<<degrees(el);
+//                            qDebug() <<"Quat: "
+//                                  << msg.message.value.vals.current_quat[0]
+//                                  << msg.message.value.vals.current_quat[1]
+//                                  << msg.message.value.vals.current_quat[2]
+//                                  << msg.message.value.vals.current_quat[3];
                             emit this->onArduinoRead(az, el);
                         }
                     }
@@ -241,7 +246,7 @@ void MainWindow::onStellariumDataReady(QTcpSocket *p)
         //took from ServerDummy.cpp, it is RADIANS now as we want
         const double ra  = msg.msg.ra_int  * (M_PI/static_cast<uint64_t>(0x80000000));
         const double dec = msg.msg.dec_int * (M_PI/static_cast<uint64_t>(0x80000000));
-       // qDebug() << "RA(hrs): "<< degrees(ra) / 15 << " DEC(deg): "<< degrees(dec);
+        // qDebug() << "RA(hrs): "<< degrees(ra) / 15 << " DEC(deg): "<< degrees(dec);
         double az, alt;
         convertRA_AZ(ra, dec, ui->latBox->valueRadians(), ui->lonBox->valueRadians(), az, alt);
         //qDebug() << "Az(deg): "<< degrees(az)<<" ALT(deg): "<<degrees(alt);
