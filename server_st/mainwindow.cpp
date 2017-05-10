@@ -171,11 +171,11 @@ void MainWindow::startComPoll()
                             float az, el;
                             readAzEl(msg.message.value, &az, &el);
                             //qDebug() <<"Az = " <<degrees(az) << ";  El = "<<degrees(el);
-//                            qDebug() <<"Quat: "
-//                                  << msg.message.value.vals.current_quat[0]
-//                                  << msg.message.value.vals.current_quat[1]
-//                                  << msg.message.value.vals.current_quat[2]
-//                                  << msg.message.value.vals.current_quat[3];
+                            //                            qDebug() <<"Quat: "
+                            //                                  << msg.message.value.vals.current_quat[0]
+                            //                                  << msg.message.value.vals.current_quat[1]
+                            //                                  << msg.message.value.vals.current_quat[2]
+                            //                                  << msg.message.value.vals.current_quat[3];
                             emit this->onArduinoRead(az, el);
                         }
                     }
@@ -212,7 +212,8 @@ void MainWindow::arduinoRead(float az_rad, float el_rad)
         //writting alt/az from arduino to stellarium
         double ra, dec;
         convertAZ_RA(static_cast<double>(az_rad), static_cast<double>(el_rad), ui->latBox->valueRadians(), ui->lonBox->valueRadians(), ra, dec);
-        //qDebug() << "RA(hrs): "<< degrees(ra) / 15 << " DEC(deg): "<< degrees(dec);
+        //qDebug() << "Az(deg): "<< degrees(az_rad)<<" ALT(deg): "<<degrees(el_rad);
+       // qDebug() << "RA(hrs): "<< degrees(ra) / 15 << " DEC(deg): "<< degrees(dec);
         if (stellarium.size())
         {
 
@@ -221,13 +222,14 @@ void MainWindow::arduinoRead(float az_rad, float el_rad)
             msg.msg.type   = 0;
             msg.msg.status = 0;
             msg.msg.clientMicros = getMicrosNow();
-
             //from ServerDummy.cpp
             msg.msg.ra_int  = static_cast<decltype(msg.msg.ra_int)>(floor(0.5   +  ra * static_cast<uint64_t>(0x80000000)/M_PI));
             msg.msg.dec_int = static_cast<decltype(msg.msg.dec_int)>(floor(0.5 +  dec * static_cast<uint64_t>(0x80000000)/M_PI)); //yes, uint64_t or u get negated dec
             for (const auto & s : stellarium)
-                if (s.second)
-                    s.second->write(msg.buffer, sizeof(ToStellMessage));
+            {
+
+                s.second->write(msg.buffer, sizeof(ToStellMessage));
+            }
         }
     }
 }

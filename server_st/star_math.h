@@ -83,8 +83,14 @@ void inline convertAZ_RA(const double azimuth_rad, const double alt_rad, const d
 {
     double sin_th = sin(alt_rad) * sin(latitude_rad) + cos(alt_rad) * cos(latitude_rad) * cos (azimuth_rad);
     dec_rad = asin(sin_th);
-    double sin_H  = -sin(azimuth_rad) * cos(alt_rad) / cos(dec_rad);
-    ra_rad = radians(getLSTDegrees(degrees(longitude_rad))) - asin(sin_H);
+
+    //double sin_H  = -sin(azimuth_rad) * cos(alt_rad) / cos(dec_rad);
+    double cos_H = (sin(alt_rad) - sin(latitude_rad) * sin_th) / (cos(dec_rad) * cos(latitude_rad));
+    double H = acos(cos_H);
+    //double H = asin(sin_H);
+
+    //qDebug() << "H : "<<H;
+    ra_rad = radians(getLSTDegrees(degrees(longitude_rad))) - H;
 }
 
 #endif // STAR_MATH_H
