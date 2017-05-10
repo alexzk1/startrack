@@ -6,8 +6,8 @@ set(PROJECT_NAME arduino_st)
 
 #https://github.com/queezythegreat/arduino-cmake#compiler-and-linker-flags
 #should be set prior project
-set(ARDUINO_C_FLAGS      "-ffunction-sections -fdata-sections")
-set(ARDUINO_CXX_FLAGS    "${ARDUINO_C_FLAGS} -felide-constructors -std=c++14")
+set(ARDUINO_C_FLAGS      "-ffunction-sections -fdata-sections -fno-threadsafe-statics")
+set(ARDUINO_CXX_FLAGS    "${ARDUINO_C_FLAGS} -std=c++11 -Os")
 set(ARDUINO_LINKER_FLAGS "-Wl,--gc-sections")
 
 project(${PROJECT_NAME})
@@ -33,6 +33,7 @@ include_directories(/home/alex/Work/arduino/libraries)
 
 #compatibility with arduino IDE, otherwise it will not find "MPU6050_6Axis_MotionApps20.h"
 include_directories(/home/alex/Work/arduino/libraries/MPU6050)
+
 #https://github.com/queezythegreat/arduino-cmake#arduino-libraries
 generate_arduino_firmware(${CMAKE_PROJECT_NAME}
-        ARDLIBS Wire LiquidCrystal I2CDev MPU6050 Serial)
+        ARDLIBS MPU6050 Wire LiquidCrystal I2CDev Serial)

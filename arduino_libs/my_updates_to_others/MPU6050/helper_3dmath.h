@@ -180,6 +180,10 @@ public:
         z = nz;
     }
 
+    Vector(const Vector<T>&) = default;
+    Vector<T>& operator=(const Vector<T>&) = default;
+    ~Vector() = default;
+
     T getMagnitude() const
     {
         return static_cast<T>(sqrt(x*x + y*y + z*z));

@@ -95,7 +95,7 @@ void dumpXYZ(const VectorFloat& arr)
 // ===               INTERRUPT DETECTION ROUTINE                ===
 // ================================================================
 
-static volatile uint8_t sensorDataReady = 0;
+volatile uint8_t sensorDataReady = 0;
 void InterruptDataReady()
 {
     sensorDataReady = 1;
@@ -158,8 +158,8 @@ void setup()
     }
 }
 
-static float az0 = 0;
-static float el0 = 0;
+float az0 = 0;
+float el0 = 0;
 
 
 float getAz(float az1)

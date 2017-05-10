@@ -25,8 +25,9 @@ namespace ard_st
         {
             int32_t az;
             int32_t el;
-        } vals;
-        char   buffer[8];
+            int16_t current_quat[4];
+        } __attribute__((packed)) vals;
+        char   buffer[sizeof(vals_t)];
 
     }__attribute__((packed));
 
@@ -37,22 +38,22 @@ namespace ard_st
         {
             char   Command;
             Packer value;
-        } message;
-        char buffer[9];
+        } __attribute__((packed)) message;
+        char buffer[sizeof(Msg)];
     }__attribute__((packed));
 
 
 
     inline void packAzEl(Packer& tmp, float azv, float elv)
     {
-        static_assert(sizeof(Packer) == 8, "Something wrong with compiler");
+        static_assert(sizeof(Packer) == 8 + 4 * 2, "Something wrong with compiler");
         tmp.vals.az = static_cast<decltype(tmp.vals.az)>(static_cast<float>(COMM_MULL) * azv);
         tmp.vals.el = static_cast<decltype(tmp.vals.el)>(static_cast<float>(COMM_MULL) * elv);
     };
 
     inline void readAzEl(const Packer& value, float *azv, float *elv)
     {
-        static_assert(sizeof(Packer) == 8, "Something wrong with compiler");
+        static_assert(sizeof(Packer) == 8 + 4 * 2, "Something wrong with compiler");
         *azv = static_cast<float>(value.vals.az) / static_cast<float>(COMM_MULL);
         *elv = static_cast<float>(value.vals.el) / static_cast<float>(COMM_MULL);
     }
