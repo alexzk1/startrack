@@ -148,7 +148,7 @@ void MainWindow::startComPoll()
             port.setDataTerminalReady(false); //disable autoreset of device
             skipWrite.test_and_set();
             readyToTrackMap = false;
-            uint32_t counter = 0;
+            uint64_t counter = 0;
             while (!(*stop))
             {
                 if (op) //if failed to open, still should start thread which does nothing
@@ -167,6 +167,7 @@ void MainWindow::startComPoll()
                     if (doubleStar)
                     {
                         readyToTrackMap = counter > 0 && counter % 2 == 0;
+
                     }
                     else
                         readyToTrackMap = readyToTrackMap || shouldSet;
@@ -189,6 +190,8 @@ void MainWindow::startComPoll()
                             emit this->onArduinoRead(az, el);
                         }
                     }
+                    else
+                        ++counter;
                 }
                 else
                     break;
