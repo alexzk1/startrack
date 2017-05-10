@@ -5,7 +5,7 @@
 #endif
 
 #define LCD_BACK_LIGHT_SENS_DEGREE (0.15) //sensevity of when to turn on backlight
-#define SENSOR_6050_FIFO_HZ 10 //my update to motion_api, should be defined prior include
+#define SENSOR_6050_FIFO_HZ 20 //my update to motion_api, should be defined prior include
 #define USE_LCD
 #define INTERRUPT_PIN 2  // use pin 2 on Arduino Uno & most boards
 #define READINGS_AMOUNT_AVR static_cast<uint8_t>((SENSOR_6050_FIFO_HZ) / 10 + 3) //how many reading to use to calc avr
@@ -20,6 +20,7 @@
 #ifdef USE_LCD
 #include "LiquidCrystal.h"
 LiquidCrystal lcd(4, 5, 10, 11, 12, 13);
+#define MAX_BRIGHTNESS 50
 #define backLightPin 3
 #endif
 
@@ -109,7 +110,7 @@ void setup()
 {
 #ifdef USE_LCD
     pinMode(backLightPin, OUTPUT);
-    analogWrite(backLightPin, 200);
+    analogWrite(backLightPin, MAX_BRIGHTNESS);
     lcd.begin(16, 2);
     lcd.clear();
     lcd.print(F("Init,fifo: "));
@@ -202,12 +203,23 @@ void readSensor(my_helpers::Circular<decltype(az0), READINGS_AMOUNT_AVR>& az, my
                 mpu.getFIFOBytes(fifoBuffer, packetSize);
                 fifoCount -= packetSize;
                 mpu.dmpGetQuaternion(msg.message.value.vals.current_quat, fifoBuffer);
-                mpu.dmpGetQuaternion(&q, fifoBuffer); q.normalize();
-                mpu.dmpGetGravity(&gravity, &q); gravity.normalize();
+                mpu.dmpGetQuaternion(&q, fifoBuffer);
+                q.normalize();
+
+                mpu.dmpGetGravity(&gravity, &q);
+                gravity.normalize();
 
                 //https://www.reddit.com/r/Astronomy/comments/3udenf/quaternion_matrix_or_euler_angles_conversion_to/
-                el.push_back_lpf(removeRotRad<decltype(el0)>(atan(gravity.x / sqrt(sqrf(gravity.y) + sqrf(gravity.z)))));
-                az.push_back_lpf(getAz(-2.f * atan2(q.z, q.w)));
+                auto elt = removeRotRad<decltype(el0)>(atan(gravity.x / sqrt(sqrf(gravity.y) + sqrf(gravity.z))));
+                el.push_back(elt);
+
+                decltype(az0) azt;
+
+                // if (elt > radians(45))
+                azt = -2.f * atan2(q.z, q.w);
+                // else
+                // azt = atan2(2 * (q.x* q.y -  q.w * q.z), 2 * (q.w * q.w +  q.x * q.x) - 1);
+                az.push_back(getAz(azt));
             }
             while (fifoCount > 0);
         }
@@ -225,6 +237,7 @@ void loop()
     static bool once = true;
     static elapsedMillis timeElapsed;
     static elapsedMillis light;
+    static elapsedMillis hadUsb;
 
     static my_helpers::Circular<decltype(az0) , READINGS_AMOUNT_AVR> az(0);
     static my_helpers::Circular<decltype(el0) , READINGS_AMOUNT_AVR> el(0);
@@ -233,50 +246,52 @@ void loop()
     // if programming failed, don't try to do anything
     if (!dmpReady) return;
 
-    if (sensorDataReady)
+    while (sensorDataReady)
         readSensor(az, el);
 
 
     if (once)
     {
         //let it stabilize for 5seconds
-        if (timeElapsed > 2000 + 1000 * (100 / SENSOR_6050_FIFO_HZ ))
+        if (timeElapsed > 10000 + 1000 * (200 / SENSOR_6050_FIFO_HZ ))
         {
             //after pressing "reset" current position will be used as zero
             az0 = az;
             el0 = el;
-            once = false;
-            timeElapsed = 0;
             az.clear(az0);
             el.clear(el0);
+            timeElapsed = 0;
             light = 0;
+            hadUsb = 60000;
+            interrupts();
+            once = false;
         }
     }
     else
     {
+        interrupts();
         while (Serial.available() >= 3 + 9)
         {
-
+            interrupts();
             if (Serial.find(MESSAGE_HDR))
             {
                 //computer makes S/R request, and arduino just responds
                 Serial.readBytes(msg.buffer, 9);
                 {
-                    my_helpers::no_interrupts lock;
                     if (msg.message.Command == 'S') //set
                     {
                         float azm = 0;
                         float elm = 0;
 
                         ard_st::readAzEl(msg.message.value, &azm, &elm);
-
+                        my_helpers::no_interrupts dumb;
                         az0 = az - azm;
                         el0 = el - elm;
-                        az.push_back(azm);
-                        el.push_back(elm);
+                        az.clear(azm);
+                        el.clear(elm);
                         continue;
                     }
-                    if (msg.message.Command == 'R') //read, other part of message must be present but ignored
+                    if (msg.message.Command == 'R' && light > 250) //read, other part of message must be present but ignored
                     {
                         ard_st::packAzEl(msg.message.value, getAz(az - az0), el - el0);
                         Serial.write(msg.message.value.buffer, sizeof(msg.message.value.buffer));
@@ -285,38 +300,53 @@ void loop()
                     }
                 }
             }
+            hadUsb = 0;
+            interrupts();
         }
 
+        bool static aw_once = true;
         if (abs(az.lastDelta()) > lightSens || abs(el.lastDelta()) > lightSens)
         {
             light = 0;
 #ifdef USE_LCD
-            analogWrite(backLightPin, 100);
+            analogWrite(backLightPin, MAX_BRIGHTNESS);
 #endif
+            aw_once = true;
         }
+        int lig = light;
+        interrupts(); //those asholes do not do sei() after checking timer!!
 
-        if (light > 30000)
+        if (lig > 30000 && hadUsb > 60000)
         {
 #ifdef USE_LCD
             digitalWrite(backLightPin, LOW);
 #endif
-            set_sleep_mode(SLEEP_MODE_IDLE); //only idle seems works by interrupt from sensor
-            sleep_enable();
-            sleep_mode();
-            sleep_disable();
+            interrupts();
+            if (!sensorDataReady)
+            {
+                set_sleep_mode(SLEEP_MODE_IDLE); //only idle seems works by interrupt from sensor
+                sleep_enable();
+                sleep_mode();
+                sleep_disable();
+            }
         }
         else
         {
 #ifdef USE_LCD
-            if (light > 7000) analogWrite(backLightPin, 10);
+            if (lig > 7000 && aw_once)
+            {
+                analogWrite(backLightPin, 10);
+                aw_once = false;
+            }
 #endif
 
-            if (timeElapsed > 250)
+            if (timeElapsed > 450)
             {
                 auto t = mpu.getTemperature() / 340. + +36.53; //celsius
                 printValues(getAz(az - az0), el - el0, t);
                 timeElapsed = 0;
             }
         }
+        interrupts();
     }
 }
