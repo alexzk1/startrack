@@ -234,13 +234,16 @@ void readSensor(my_helpers::Circular<decltype(az0), READINGS_AMOUNT_AVR>& az, my
 
 void loop()
 {
+    using az_t = decltype(az0);
+
     static bool once = true;
     static elapsedMillis timeElapsed;
     static elapsedMillis light;
     static elapsedMillis hadUsb;
+    static uint32_t counter = 0;
 
-    static my_helpers::Circular<decltype(az0) , READINGS_AMOUNT_AVR> az(0);
-    static my_helpers::Circular<decltype(el0) , READINGS_AMOUNT_AVR> el(0);
+    static my_helpers::Circular<az_t , READINGS_AMOUNT_AVR> az(0);
+    static my_helpers::Circular<az_t , READINGS_AMOUNT_AVR> el(0);
 
     const static float lightSens = radians(LCD_BACK_LIGHT_SENS_DEGREE);
     // if programming failed, don't try to do anything
@@ -269,6 +272,7 @@ void loop()
     }
     else
     {
+
         interrupts();
         while (Serial.available() >= 3 + 9)
         {
@@ -278,19 +282,67 @@ void loop()
                 //computer makes S/R request, and arduino just responds
                 Serial.readBytes(msg.buffer, 9);
                 {
-                    if (msg.message.Command == 'S') //set
+                    if (msg.message.Command == 'D') //set
                     {
-                        float azm = 0;
-                        float elm = 0;
+
+                        static az_t settvals[] = {0,0,0,0};
+                        static az_t sensvals[] = {0,0,0,0};
+
+                        noInterrupts();
+                        az_t azm = 0;
+                        az_t elm = 0;
 
                         ard_st::readAzEl(msg.message.value, &azm, &elm);
-                        my_helpers::no_interrupts dumb;
-                        az0 = az - azm;
-                        el0 = el - elm;
+                        auto ct = (counter % 2);
+                        ++counter;
+
+                        az_t curraz = az;
+                        az_t currel = el;
+                        interrupts();
+
+                        settvals[ct + 0] = azm;
+                        settvals[ct + 1] = elm;
+
+                        sensvals[ct + 0] = curraz;
+                        sensvals[ct + 1] = currel;
+
+                        if (ct)
+                        {
+                            //have both stars defined
+                            az_t err = (sensvals[2] - curraz) / (sensvals[2] - sensvals[0]);
+                            az.setError(err);
+                            err = (sensvals[3] - currel) / (sensvals[3] - sensvals[1]);
+                            el.setError(err);
+                        }
+                        else
+                        {
+                            az0 = curraz - azm;
+                            el0 = currel - elm;
+                            timeElapsed = 0;
+                        }
+                        noInterrupts();
                         az.clear(azm);
                         el.clear(elm);
                         continue;
                     }
+
+                    if (msg.message.Command == 'S') //set
+                    {
+                        az_t azm = 0;
+                        az_t elm = 0;
+
+                        ard_st::readAzEl(msg.message.value, &azm, &elm);
+                        noInterrupts();
+
+                        counter = 0;
+                        az0 = az - azm;
+                        el0 = el - elm;
+
+                        az.clear(azm);
+                        el.clear(elm);
+                        continue;
+                    }
+
                     if (msg.message.Command == 'R' && light > 250) //read, other part of message must be present but ignored
                     {
                         ard_st::packAzEl(msg.message.value, getAz(az - az0), el - el0);
@@ -338,14 +390,30 @@ void loop()
                 analogWrite(backLightPin, 10);
                 aw_once = false;
             }
-#endif
 
-            if (timeElapsed > 450)
+
+            if (counter % 2 == 0)
             {
-                auto t = mpu.getTemperature() / 340. + +36.53; //celsius
-                printValues(getAz(az - az0), el - el0, t);
-                timeElapsed = 0;
+#endif
+                if (timeElapsed > 250)
+                {
+                    auto t = mpu.getTemperature() / 340. + +36.53; //celsius
+                    printValues(getAz(az - az0), el - el0, t);
+                    timeElapsed = 0;
+                }
+#ifdef USE_LCD
             }
+            else
+            {
+                if (timeElapsed < 1000)
+                {
+                    lcd.clear();
+                    lcd.print(F("Point 2nd star &"));
+                    lcd.setCursor(0, 1);
+                    lcd.print(F("press ctrl+1 again"));
+                }
+            }
+#endif
         }
         interrupts();
     }

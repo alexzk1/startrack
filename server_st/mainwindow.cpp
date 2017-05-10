@@ -24,7 +24,8 @@ MainWindow::MainWindow(QWidget *parent) :
     skipWrite(ATOMIC_FLAG_INIT),
     gaz(0), gel(0),
     server(nullptr),
-    readyToTrackMap(false)
+    readyToTrackMap(false),
+    doubleStar(false)
 {
     ui->setupUi(this);
     setWindowFlags( (windowFlags() | Qt::CustomizeWindowHint) & ~Qt::WindowMaximizeButtonHint);
@@ -90,6 +91,7 @@ void MainWindow::recurseRead(QSettings &settings, QObject *object)
     ui->lonBox->setRadians(settings.value("Longitude", 0).toDouble());
     ui->latBox->setRadians(settings.value("Latitude", 0).toDouble());
     ui->cbNight->setChecked(settings.value("Night", false).toBool());
+    ui->cbDouble->setChecked(settings.value("DoubleStar", true).toBool());
 }
 
 void MainWindow::recurseWrite(QSettings &settings, QObject *object)
@@ -100,6 +102,7 @@ void MainWindow::recurseWrite(QSettings &settings, QObject *object)
     settings.setValue("Longitude", ui->lonBox->valueRadians());
     settings.setValue("Latitude",  ui->latBox->valueRadians());
     settings.setValue("Night", ui->cbNight->isChecked());
+    settings.setValue("DoubleStar", ui->cbDouble->isChecked());
 }
 
 void MainWindow::on_pushButton_clicked()
@@ -126,6 +129,7 @@ void MainWindow::on_cbPorts_currentIndexChanged(int index)
 
 void MainWindow::startComPoll()
 {
+    doubleStar = ui->cbDouble->isChecked();
     comThread = utility::startNewRunner([this](auto stop)
     {
         using namespace std::chrono_literals;
@@ -144,6 +148,7 @@ void MainWindow::startComPoll()
             port.setDataTerminalReady(false); //disable autoreset of device
             skipWrite.test_and_set();
             readyToTrackMap = false;
+            uint32_t counter = 0;
             while (!(*stop))
             {
                 if (op) //if failed to open, still should start thread which does nothing
@@ -152,14 +157,19 @@ void MainWindow::startComPoll()
                     Message msg;
                     packAzEl(msg.message.value, gaz, gel);
                     bool shouldSet = !skipWrite.test_and_set();
-                    msg.message.Command = (shouldSet)?'S':'R';
+                    msg.message.Command = (shouldSet)?((doubleStar)?'D':'S'):'R';
                     port.write(header.c_str(), static_cast<int>(header.size()));
                     port.write(msg.buffer, sizeof(msg.buffer));
                     if (*stop || !port.waitForBytesWritten(5000))
                         break;
 
                     //once we calibrated using star on map we can keep tracking it
-                    readyToTrackMap = readyToTrackMap || shouldSet;
+                    if (doubleStar)
+                    {
+                        readyToTrackMap = counter > 0 && counter % 2 == 0;
+                    }
+                    else
+                        readyToTrackMap = readyToTrackMap || shouldSet;
                     if (!shouldSet)
                     {
                         const static auto msz = static_cast<decltype (port.bytesAvailable())>(sizeof(msg.message.value));
@@ -262,4 +272,9 @@ void MainWindow::on_cbNight_toggled(bool checked)
         qApp->setStyleSheet(nightScheme);
     else
         qApp->setStyleSheet("");
+}
+
+void MainWindow::on_cbDouble_toggled(bool checked)
+{
+    doubleStar = checked;
 }
