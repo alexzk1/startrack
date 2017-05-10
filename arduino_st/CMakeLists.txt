@@ -6,9 +6,10 @@ set(PROJECT_NAME arduino_st)
 
 #https://github.com/queezythegreat/arduino-cmake#compiler-and-linker-flags
 #should be set prior project
-set(ARDUINO_C_FLAGS      "-ffunction-sections -fdata-sections -fno-threadsafe-statics")
-set(ARDUINO_CXX_FLAGS    "${ARDUINO_C_FLAGS} -std=c++11 -Os")
-set(ARDUINO_LINKER_FLAGS "-Wl,--gc-sections")
+#ARDUINO_C_FLAGS contain here code size optimization
+set(ARDUINO_C_FLAGS      " -Os -ffunction-sections -fdata-sections -Wl,--gc-sections -fdce")
+set(ARDUINO_CXX_FLAGS    "${ARDUINO_C_FLAGS} -felide-constructors -fno-threadsafe-statics -std=c++11")
+#set(ARDUINO_LINKER_FLAGS "")
 
 project(${PROJECT_NAME})
 
