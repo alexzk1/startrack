@@ -350,6 +350,9 @@ void loop()
                         az0 = az - azm;
                         el0 = el - elm;
 
+                        az.setError(0);
+                        el.setError(0);
+
                         az.clear(azm);
                         el.clear(elm);
                         continue;

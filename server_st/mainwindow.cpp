@@ -159,7 +159,7 @@ void MainWindow::startComPoll()
                     packAzEl(msg.message.value, gaz, gel);
                     bool shouldSet = !skipWrite.test_and_set();
 
-                    if (shouldSet && ds && (counter % 2) == 0)
+                    if (shouldSet && (!ds || (ds && (counter % 2) == 0)))
                     {
                         //cleansing all sensor data there and let'em gather some
                         msg.message.Command = 'C';
