@@ -91,7 +91,7 @@ void MainWindow::recurseRead(QSettings &settings, QObject *object)
     ui->lonBox->setRadians(settings.value("Longitude", 0).toDouble());
     ui->latBox->setRadians(settings.value("Latitude", 0).toDouble());
     ui->cbNight->setChecked(settings.value("Night", false).toBool());
-    ui->cbDouble->setChecked(settings.value("DoubleStar", true).toBool());
+    ui->cbDouble->setChecked(settings.value("DoubleStar", false).toBool());
 }
 
 void MainWindow::recurseWrite(QSettings &settings, QObject *object)

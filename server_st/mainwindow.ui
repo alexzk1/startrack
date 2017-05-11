@@ -128,7 +128,7 @@
     <item row="9" column="0" colspan="2">
      <widget class="QCheckBox" name="cbDouble">
       <property name="text">
-       <string>Use 2 stars to align</string>
+       <string>Use &amp;2 stars to align</string>
       </property>
       <property name="checked">
        <bool>true</bool>
