@@ -164,13 +164,7 @@ void MainWindow::startComPoll()
                         break;
 
                     //once we calibrated using star on map we can keep tracking it
-                    if (doubleStar)
-                    {
-                        readyToTrackMap = counter > 0 && counter % 2 == 0;
 
-                    }
-                    else
-                        readyToTrackMap = readyToTrackMap || shouldSet;
                     if (!shouldSet)
                     {
                         const static auto msz = static_cast<decltype (port.bytesAvailable())>(sizeof(msg.message.value));
@@ -191,7 +185,15 @@ void MainWindow::startComPoll()
                         }
                     }
                     else
+                    {
+                        if (doubleStar)
+                        {
+                            readyToTrackMap = counter > 0 && (counter % 2) == 0;
+                        }
+                        else
+                            readyToTrackMap = true;
                         ++counter;
+                    }
                 }
                 else
                     break;
