@@ -245,11 +245,13 @@ void loop()
     static my_helpers::Circular<az_t , READINGS_AMOUNT_AVR> az(0);
     static my_helpers::Circular<az_t , READINGS_AMOUNT_AVR> el(0);
 
+    static my_helpers::Circular<az_t , 30> az_drift(0);
+
     const static float lightSens = radians(LCD_BACK_LIGHT_SENS_DEGREE);
     // if programming failed, don't try to do anything
     if (!dmpReady) return;
 
-    while (sensorDataReady)
+    if (sensorDataReady)
         readSensor(az, el);
 
 
@@ -284,6 +286,7 @@ void loop()
                 {
                     if (msg.message.Command == 'C') //clear errors
                     {
+                        counter = 0;
                         az.setError(0);
                         el.setError(0);
 
@@ -306,35 +309,40 @@ void loop()
                         auto ct = (counter % 2);
                         ++counter;
 
-                        az_t curraz = az;
-                        az_t currel = el;
-                        interrupts();
-
                         settvals[ct + 0] = azm;
                         settvals[ct + 1] = elm;
 
-                        sensvals[ct + 0] = curraz;
-                        sensvals[ct + 1] = currel;
+                        sensvals[ct + 0] = az;
+                        sensvals[ct + 1] = el;
 
+                        //not sure, this error will include human's "bad eye" centering ... possibly it's bad idea to use
                         if (ct)
                         {
                             //have both stars defined
-                            az_t err = (sensvals[2] - curraz) / (sensvals[2] - sensvals[0]);
-                            az.setError(err);
-                            err = (sensvals[3] - currel) / (sensvals[3] - sensvals[1]);
-                            el.setError(err);
+                            auto div = settvals[2] - settvals[0];
+                            if (!my_helpers::isZero(div))
+                            {
+                                az_t err = 1 - (sensvals[2] - sensvals[0]) / div;
+                                az.setError(err);
+                            }
+                            div = settvals[2] - settvals[0];
+                            if (!my_helpers::isZero(div))
+                            {
+                                az_t err = 1 - (sensvals[3] - sensvals[1]) / div;
+                                el.setError(err);
+                            }
                         }
                         else
                         {
-                            az0 = curraz - azm;
-                            el0 = currel - elm;
+                            az0 = sensvals[0] - azm;
+                            el0 = sensvals[1] - elm;
                             az.setError(0);
                             el.setError(0);
                             timeElapsed = 0;
+                            az.clear(azm);
+                            el.clear(elm);
                         }
-                        az.clear(azm);
-                        el.clear(elm);
-                        noInterrupts();
+
                         continue;
                     }
 
@@ -399,14 +407,19 @@ void loop()
         }
         else
         {
+            if (lig > 1500)
+            {
+                az_drift.push_back(az.lastDelta());
+                az.setError(az_drift);
+            }
 #ifdef USE_LCD
             if (lig > 7000 && aw_once)
             {
+
                 analogWrite(backLightPin, 10);
                 aw_once = false;
             }
-
-
+            
             if (counter % 2 == 0)
             {
 #endif
