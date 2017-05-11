@@ -245,7 +245,7 @@ void loop()
     static my_helpers::Circular<az_t , READINGS_AMOUNT_AVR> az(0);
     static my_helpers::Circular<az_t , READINGS_AMOUNT_AVR> el(0);
 
-    static my_helpers::Circular<az_t , 30> az_drift(0);
+    static my_helpers::Circular<az_t, READINGS_AMOUNT_AVR * 2> az_drift(0);
 
     const static float lightSens = radians(LCD_BACK_LIGHT_SENS_DEGREE);
     // if programming failed, don't try to do anything
@@ -407,10 +407,10 @@ void loop()
         }
         else
         {
-            if (lig > 1500)
+            if (lig > 700)
             {
                 az_drift.push_back(az.lastDelta());
-                az.setError(az_drift);
+                az.setSignedError(az_drift);
             }
 #ifdef USE_LCD
             if (lig > 7000 && aw_once)
@@ -419,7 +419,7 @@ void loop()
                 analogWrite(backLightPin, 10);
                 aw_once = false;
             }
-            
+
             if (counter % 2 == 0)
             {
 #endif
