@@ -151,20 +151,37 @@ void MainWindow::startComPoll()
             uint64_t counter = 0;
             while (!(*stop))
             {
+                bool ds = doubleStar;
                 if (op) //if failed to open, still should start thread which does nothing
                 {
                     const static std::string header(MESSAGE_HDR);
                     Message msg;
                     packAzEl(msg.message.value, gaz, gel);
                     bool shouldSet = !skipWrite.test_and_set();
-                    msg.message.Command = (shouldSet)?((doubleStar)?'D':'S'):'R';
+
+                    if (shouldSet && ds && (counter % 2) == 0)
+                    {
+                        //cleansing all sensor data there and let'em gather some
+                        msg.message.Command = 'C';
+                        port.write(header.c_str(), static_cast<int>(header.size()));
+                        port.write(msg.buffer, sizeof(msg.buffer));
+                        port.waitForBytesWritten(5000);
+                        std::this_thread::sleep_for(500ms);
+                    }
+
+                    msg.message.Command = (shouldSet)?((ds)?'D':'S'):'R';
                     port.write(header.c_str(), static_cast<int>(header.size()));
                     port.write(msg.buffer, sizeof(msg.buffer));
                     if (*stop || !port.waitForBytesWritten(5000))
                         break;
 
                     //once we calibrated using star on map we can keep tracking it
-
+                    if (ds)
+                    {
+                        readyToTrackMap = counter > 0 && (counter % 2) == 0;
+                    }
+                    else
+                        readyToTrackMap = readyToTrackMap || shouldSet;
                     if (!shouldSet)
                     {
                         const static auto msz = static_cast<decltype (port.bytesAvailable())>(sizeof(msg.message.value));
@@ -185,15 +202,7 @@ void MainWindow::startComPoll()
                         }
                     }
                     else
-                    {
-                        if (doubleStar)
-                        {
-                            readyToTrackMap = counter > 0 && (counter % 2) == 0;
-                        }
-                        else
-                            readyToTrackMap = true;
                         ++counter;
-                    }
                 }
                 else
                     break;

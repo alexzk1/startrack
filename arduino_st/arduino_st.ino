@@ -282,6 +282,16 @@ void loop()
                 //computer makes S/R request, and arduino just responds
                 Serial.readBytes(msg.buffer, 9);
                 {
+                    if (msg.message.Command == 'C') //clear errors
+                    {
+                        az.setError(0);
+                        el.setError(0);
+
+                        az.clear(0);
+                        el.clear(0);
+                        continue;
+                    }
+
                     if (msg.message.Command == 'D') //set
                     {
 
@@ -318,11 +328,13 @@ void loop()
                         {
                             az0 = curraz - azm;
                             el0 = currel - elm;
+                            az.setError(0);
+                            el.setError(0);
                             timeElapsed = 0;
                         }
-                        noInterrupts();
                         az.clear(azm);
                         el.clear(elm);
+                        noInterrupts();
                         continue;
                     }
 
