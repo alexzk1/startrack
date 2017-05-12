@@ -8,8 +8,8 @@
 #define SENSOR_6050_FIFO_HZ 20 //my update to motion_api, should be defined prior include
 #define USE_LCD
 #define INTERRUPT_PIN 2  // use pin 2 on Arduino Uno & most boards
-#define READINGS_AMOUNT_AVR static_cast<uint8_t>((SENSOR_6050_FIFO_HZ) / 10 + 3) //how many reading to use to calc avr
-//#define READINGS_AMOUNT_AVR 3
+//#define READINGS_AMOUNT_AVR static_cast<uint8_t>((SENSOR_6050_FIFO_HZ) / 10 + 3) //how many reading to use to calc avr
+#define READINGS_AMOUNT_AVR 3
 
 #include "MPU6050_6Axis_MotionApps20.h"
 #include "MPU6050.h" // not necessary if using MotionApps include file
@@ -159,8 +159,11 @@ void setup()
     }
 }
 
-static float az0 = 0;
-static float el0 = 0;
+static float az0  = 0;
+static float el0  = 0;
+static bool calibrating_once = true;
+static bool clearing         = false;
+
 static ard_st::Message msg;
 
 float getAz(float az1)
@@ -169,6 +172,13 @@ float getAz(float az1)
     return my_helpers::removeRotRad<decltype(az0)>(az1);
 }
 
+template <class I>
+typename my_helpers::std::enable_if<my_helpers::std::is_integral<I>::value, VectorFloat>::type
+toFloat(const Vector<I>& src)
+{
+    constexpr static float div = 1 << (sizeof(I) - 1);
+    return VectorFloat (src.x / div, src.y / div, src.z / div);
+};
 
 void readSensor(my_helpers::Circular<decltype(az0), READINGS_AMOUNT_AVR>& az, my_helpers::Circular<decltype(el0), READINGS_AMOUNT_AVR>& el)
 {
@@ -196,6 +206,7 @@ void readSensor(my_helpers::Circular<decltype(az0), READINGS_AMOUNT_AVR>& az, my
                 static uint8_t  fifoBuffer[64]; // FIFO storage buffer
                 static Quaternion q;           // [w, x, y, z]         quaternion container
                 static VectorFloat gravity;
+                static VectorInt16 accel;
 
                 if (fifoCount < packetSize)
                     break;
@@ -204,21 +215,47 @@ void readSensor(my_helpers::Circular<decltype(az0), READINGS_AMOUNT_AVR>& az, my
                 fifoCount -= packetSize;
                 mpu.dmpGetQuaternion(msg.message.value.vals.current_quat, fifoBuffer);
                 mpu.dmpGetQuaternion(&q, fifoBuffer);
-                q.normalize();
 
                 mpu.dmpGetGravity(&gravity, &q);
                 gravity.normalize();
-
-                //https://www.reddit.com/r/Astronomy/comments/3udenf/quaternion_matrix_or_euler_angles_conversion_to/
-                auto elt = removeRotRad<decltype(el0)>(atan(gravity.x / sqrt(sqrf(gravity.y) + sqrf(gravity.z))));
+                const auto elt = removeRotRad<decltype(el0)>(atan(gravity.x / sqrt(sqrf(gravity.y) + sqrf(gravity.z))));
                 el.push_back(elt);
 
-                decltype(az0) azt;
+                static decltype(q.z)   zerr = 0;
+                static decltype(zerr)  last_ok_z = 0;
 
-                // if (elt > radians(45))
-                azt = -2.f * atan2(q.z, q.w);
-                // else
-                // azt = atan2(2 * (q.x* q.y -  q.w * q.z), 2 * (q.w * q.w +  q.x * q.x) - 1);
+                //ignoring z accel, because telescope don't fly
+                mpu.dmpGetAccel(&accel, fifoBuffer);
+                mpu.dmpGetLinearAccel(&accel, &accel, &gravity);
+                constexpr static int16_t acc_limit = 14;
+                bool noaccel = abs(accel.x) < acc_limit && abs(accel.y < acc_limit);// && abs(accel.z) < acc_limit;
+
+                bool bad = noaccel && !calibrating_once && !clearing;
+                if (bad)
+                {
+                    constexpr static decltype(q.z) errweight = 0.80;
+                    zerr = zerr * errweight + (1 - errweight) * (q.z - last_ok_z);
+                    mpu.resetFIFO();
+                    fifoCount = 0;
+                }
+                else
+                {
+                    if (clearing)
+                        zerr = 0;
+                    last_ok_z = q.z - zerr;
+                }
+
+                q.z = last_ok_z;
+                q.normalize();
+
+
+
+
+
+
+
+                //https://www.reddit.com/r/Astronomy/comments/3udenf/quaternion_matrix_or_euler_angles_conversion_to/
+                const auto azt = -2.f * atan2(q.z, q.w);
                 az.push_back(getAz(azt));
             }
             while (fifoCount > 0);
@@ -236,7 +273,6 @@ void loop()
 {
     using az_t = decltype(az0);
 
-    static bool once = true;
     static elapsedMillis timeElapsed;
     static elapsedMillis light;
     static elapsedMillis hadUsb;
@@ -244,8 +280,6 @@ void loop()
 
     static my_helpers::Circular<az_t , READINGS_AMOUNT_AVR> az(0);
     static my_helpers::Circular<az_t , READINGS_AMOUNT_AVR> el(0);
-
-    static my_helpers::Circular<az_t, READINGS_AMOUNT_AVR * 2> az_drift(0);
 
     const static float lightSens = radians(LCD_BACK_LIGHT_SENS_DEGREE);
     // if programming failed, don't try to do anything
@@ -255,7 +289,7 @@ void loop()
         readSensor(az, el);
 
 
-    if (once)
+    if (calibrating_once)
     {
         //let it stabilize for 5seconds
         if (timeElapsed > 10000 + 1000 * (200 / SENSOR_6050_FIFO_HZ ))
@@ -269,7 +303,7 @@ void loop()
             light = 0;
             hadUsb = 60000;
             interrupts();
-            once = false;
+            calibrating_once = false;
         }
     }
     else
@@ -278,6 +312,7 @@ void loop()
         interrupts();
         while (Serial.available() >= 3 + 9)
         {
+            hadUsb = 0;
             interrupts();
             if (Serial.find(MESSAGE_HDR))
             {
@@ -287,62 +322,9 @@ void loop()
                     if (msg.message.Command == 'C') //clear errors
                     {
                         counter = 0;
-                        az.setError(0);
-                        el.setError(0);
-
                         az.clear(0);
                         el.clear(0);
-                        continue;
-                    }
-
-                    if (msg.message.Command == 'D') //set
-                    {
-
-                        static az_t settvals[] = {0,0,0,0};
-                        static az_t sensvals[] = {0,0,0,0};
-
-                        noInterrupts();
-                        az_t azm = 0;
-                        az_t elm = 0;
-
-                        ard_st::readAzEl(msg.message.value, &azm, &elm);
-                        auto ct = (counter % 2);
-                        ++counter;
-
-                        settvals[ct + 0] = azm;
-                        settvals[ct + 1] = elm;
-
-                        sensvals[ct + 0] = az;
-                        sensvals[ct + 1] = el;
-
-                        //not sure, this error will include human's "bad eye" centering ... possibly it's bad idea to use
-                        if (ct)
-                        {
-                            //have both stars defined
-                            auto div = settvals[2] - settvals[0];
-                            if (!my_helpers::isZero(div))
-                            {
-                                az_t err = 1 - (sensvals[2] - sensvals[0]) / div;
-                                az.setError(err);
-                            }
-                            div = settvals[2] - settvals[0];
-                            if (!my_helpers::isZero(div))
-                            {
-                                az_t err = 1 - (sensvals[3] - sensvals[1]) / div;
-                                el.setError(err);
-                            }
-                        }
-                        else
-                        {
-                            az0 = sensvals[0] - azm;
-                            el0 = sensvals[1] - elm;
-                            az.setError(0);
-                            el.setError(0);
-                            timeElapsed = 0;
-                            az.clear(azm);
-                            el.clear(elm);
-                        }
-
+                        clearing = true;
                         continue;
                     }
 
@@ -358,15 +340,13 @@ void loop()
                         az0 = az - azm;
                         el0 = el - elm;
 
-                        az.setError(0);
-                        el.setError(0);
-
                         az.clear(azm);
                         el.clear(elm);
+                        clearing = false;
                         continue;
                     }
 
-                    if (msg.message.Command == 'R' && light > 250) //read, other part of message must be present but ignored
+                    if (msg.message.Command == 'R' /*&& light > 250*/) //read, other part of message must be present but ignored
                     {
                         ard_st::packAzEl(msg.message.value, getAz(az - az0), el - el0);
                         Serial.write(msg.message.value.buffer, sizeof(msg.message.value.buffer));
@@ -375,12 +355,13 @@ void loop()
                     }
                 }
             }
-            hadUsb = 0;
             interrupts();
         }
 
         bool static aw_once = true;
-        if (abs(az.lastDelta()) > lightSens || abs(el.lastDelta()) > lightSens)
+        auto azld = az.lastDelta();
+
+        if (abs(azld) > lightSens || abs(el.lastDelta()) > lightSens || clearing)
         {
             light = 0;
 #ifdef USE_LCD
@@ -407,11 +388,7 @@ void loop()
         }
         else
         {
-            if (lig > 700)
-            {
-                az_drift.push_back(az.lastDelta());
-                az.setSignedError(az_drift);
-            }
+
 #ifdef USE_LCD
             if (lig > 7000 && aw_once)
             {
@@ -419,29 +396,13 @@ void loop()
                 analogWrite(backLightPin, 10);
                 aw_once = false;
             }
-
-            if (counter % 2 == 0)
-            {
 #endif
-                if (timeElapsed > 250)
-                {
-                    auto t = mpu.getTemperature() / 340. + +36.53; //celsius
-                    printValues(getAz(az - az0), el - el0, t);
-                    timeElapsed = 0;
-                }
-#ifdef USE_LCD
-            }
-            else
+            if (timeElapsed > 250)
             {
-                if (timeElapsed < 1000)
-                {
-                    lcd.clear();
-                    lcd.print(F("Point 2nd star &"));
-                    lcd.setCursor(0, 1);
-                    lcd.print(F("press ctrl+1 again"));
-                }
+                auto t = mpu.getTemperature() / 340. + +36.53; //celsius
+                printValues(getAz(az - az0), el - el0, t);
+                timeElapsed = 0;
             }
-#endif
         }
         interrupts();
     }

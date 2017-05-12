@@ -628,15 +628,18 @@ uint8_t MPU6050::dmpGetQuaternion(int16_t *data, const uint8_t* packet)
     data[3] = ((packet[12] << 8) | packet[13]);
     return 0;
 }
-uint8_t MPU6050::dmpGetQuaternion(Quaternion *q, const uint8_t* packet) {
+uint8_t MPU6050::dmpGetQuaternion(Quaternion *q, const uint8_t* packet)
+{
     // TODO: accommodate different arrangements of sent data (ONLY default supported now)
     int16_t qI[4];
     uint8_t status = dmpGetQuaternion(qI, packet);
-    if (status == 0) {
-        q -> w = (float)qI[0] / 16384.0f;
-        q -> x = (float)qI[1] / 16384.0f;
-        q -> y = (float)qI[2] / 16384.0f;
-        q -> z = (float)qI[3] / 16384.0f;
+    constexpr static float  div = 1 << (sizeof(qI[0]) - 1);
+    if (status == 0)
+    {
+        q -> w = (float)qI[0] / div;
+        q -> x = (float)qI[1] / div;
+        q -> y = (float)qI[2] / div;
+        q -> z = (float)qI[3] / div;
         return 0;
     }
     return status; // int16 return value, indicates error if this line is reached
@@ -651,7 +654,8 @@ uint8_t MPU6050::dmpGetGyro(int32_t *data, const uint8_t* packet) {
     data[2] = (((uint32_t)packet[24] << 24) | ((uint32_t)packet[25] << 16) | ((uint32_t)packet[26] << 8) | packet[27]);
     return 0;
 }
-uint8_t MPU6050::dmpGetGyro(int16_t *data, const uint8_t* packet) {
+uint8_t MPU6050::dmpGetGyro(int16_t *data, const uint8_t* packet)
+{
     // TODO: accommodate different arrangements of sent data (ONLY default supported now)
     if (packet == 0) packet = dmpPacketBuffer;
     data[0] = (packet[16] << 8) | packet[17];
