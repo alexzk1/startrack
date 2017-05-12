@@ -34,8 +34,6 @@ private slots:
 
     void on_cbNight_toggled(bool checked);
 
-    void on_cbDouble_toggled(bool checked);
-
 private:
     Ui::MainWindow *ui;
     utility::runner_t comThread;
@@ -45,7 +43,7 @@ private:
     std::shared_ptr<QTcpServer> server;
     std::map<uint64_t, QPointer<QTcpSocket>> stellarium; //decided to have many possible connections, each one can track or rule device
     std::atomic<bool> readyToTrackMap;
-    std::atomic<bool> doubleStar;
+
     void startComPoll();
     void writeToArduino(float az_rad, float el_rad);
     int64_t getMicrosNow();

@@ -24,8 +24,7 @@ MainWindow::MainWindow(QWidget *parent) :
     skipWrite(ATOMIC_FLAG_INIT),
     gaz(0), gel(0),
     server(nullptr),
-    readyToTrackMap(false),
-    doubleStar(false)
+    readyToTrackMap(false)
 {
     ui->setupUi(this);
     setWindowFlags( (windowFlags() | Qt::CustomizeWindowHint) & ~Qt::WindowMaximizeButtonHint);
@@ -91,7 +90,7 @@ void MainWindow::recurseRead(QSettings &settings, QObject *object)
     ui->lonBox->setRadians(settings.value("Longitude", 0).toDouble());
     ui->latBox->setRadians(settings.value("Latitude", 0).toDouble());
     ui->cbNight->setChecked(settings.value("Night", false).toBool());
-    ui->cbDouble->setChecked(settings.value("DoubleStar", false).toBool());
+
 }
 
 void MainWindow::recurseWrite(QSettings &settings, QObject *object)
@@ -102,7 +101,7 @@ void MainWindow::recurseWrite(QSettings &settings, QObject *object)
     settings.setValue("Longitude", ui->lonBox->valueRadians());
     settings.setValue("Latitude",  ui->latBox->valueRadians());
     settings.setValue("Night", ui->cbNight->isChecked());
-    settings.setValue("DoubleStar", ui->cbDouble->isChecked());
+
 }
 
 void MainWindow::on_pushButton_clicked()
@@ -129,7 +128,6 @@ void MainWindow::on_cbPorts_currentIndexChanged(int index)
 
 void MainWindow::startComPoll()
 {
-    doubleStar = ui->cbDouble->isChecked();
     comThread = utility::startNewRunner([this](auto stop)
     {
         using namespace std::chrono_literals;
@@ -151,7 +149,6 @@ void MainWindow::startComPoll()
             uint64_t counter = 0;
             while (!(*stop))
             {
-                bool ds = doubleStar;
                 if (op) //if failed to open, still should start thread which does nothing
                 {
                     const static std::string header(MESSAGE_HDR);
@@ -159,7 +156,7 @@ void MainWindow::startComPoll()
                     packAzEl(msg.message.value, gaz, gel);
                     bool shouldSet = !skipWrite.test_and_set();
 
-                    if (shouldSet && (!ds || (ds && (counter % 2) == 0)))
+                    if (shouldSet)
                     {
                         //cleansing all sensor data there and let'em gather some
                         msg.message.Command = 'C';
@@ -169,19 +166,13 @@ void MainWindow::startComPoll()
                         std::this_thread::sleep_for(500ms);
                     }
 
-                    msg.message.Command = (shouldSet)?((ds)?'D':'S'):'R';
+                    msg.message.Command = (shouldSet)?'S':'R';
                     port.write(header.c_str(), static_cast<int>(header.size()));
                     port.write(msg.buffer, sizeof(msg.buffer));
                     if (*stop || !port.waitForBytesWritten(5000))
                         break;
 
-                    //once we calibrated using star on map we can keep tracking it
-                    if (ds)
-                    {
-                        readyToTrackMap = counter > 0 && (counter % 2) == 0;
-                    }
-                    else
-                        readyToTrackMap = readyToTrackMap || shouldSet;
+                    readyToTrackMap = readyToTrackMap || shouldSet;
                     if (!shouldSet)
                     {
                         const static auto msz = static_cast<decltype (port.bytesAvailable())>(sizeof(msg.message.value));
@@ -288,7 +279,3 @@ void MainWindow::on_cbNight_toggled(bool checked)
         qApp->setStyleSheet("");
 }
 
-void MainWindow::on_cbDouble_toggled(bool checked)
-{
-    doubleStar = checked;
-}
