@@ -65,11 +65,8 @@ struct  epsilon_t<double >
     inline static double epsilon(){ return 0.00000001;}
 };
 
-template <class T>
-bool isZero(T v)
-{
-    return (abs(v) <= epsilon_t<T>::epsilon());
-}
+
+
 
 template <typename T>
 class QuaternionTempl
@@ -80,7 +77,22 @@ public:
     T y;
     T z;
 
+    bool isZero(T v)
+    {
+        return (abs(v) <= epsilon_t<T>::epsilon());
+    }
+
     QuaternionTempl()
+    {
+        zero();
+    }
+
+    QuaternionTempl(T nw, T nx, T ny, T nz)
+    {
+       set(nw, nx, ny, nz);
+    }
+
+    void zero()
     {
         w = static_cast<T>(1);
         x = static_cast<T>(0);
@@ -88,13 +100,16 @@ public:
         z = static_cast<T>(0);
     }
 
-    QuaternionTempl(T nw, T nx, T ny, T nz)
+    void set(T nw, T nx, T ny, T nz)
     {
         w = nw;
         x = nx;
         y = ny;
         z = nz;
     }
+
+    QuaternionTempl(const QuaternionTempl<T>& c)               = default;
+    QuaternionTempl<T>& operator=(const QuaternionTempl<T>& c) = default;
 
     QuaternionTempl<T> getProduct(const QuaternionTempl<T>& q) const
     {
@@ -103,11 +118,11 @@ public:
         //     (Q1 * Q2).x = (w1x2 + x1w2 + y1z2 - z1y2)
         //     (Q1 * Q2).y = (w1y2 - x1z2 + y1w2 + z1x2)
         //     (Q1 * Q2).z = (w1z2 + x1y2 - y1x2 + z1w2
-        return QuaternionTempl<T>(
-                w*q.w - x*q.x - y*q.y - z*q.z,  // new w
-                w*q.x + x*q.w + y*q.z - z*q.y,  // new x
-                w*q.y - x*q.z + y*q.w + z*q.x,  // new y
-                w*q.z + x*q.y - y*q.x + z*q.w); // new z
+
+        return QuaternionTempl<T>(w*q.w - x*q.x - y*q.y - z*q.z,  // new w
+        w*q.x + x*q.w + y*q.z - z*q.y,  // new x
+        w*q.y - x*q.z + y*q.w + z*q.x,  // new y
+        w*q.z + x*q.y - y*q.x + z*q.w); // new z
     }
 
     QuaternionTempl<T> getConjugate() const
@@ -120,18 +135,36 @@ public:
         return sqrt(w*w + x*x + y*y + z*z);
     }
 
+    void scale(T val)
+    {
+        w *= val;
+        x *= val;
+        y *= val;
+        z *= val;
+    }
+
+    QuaternionTempl<T>&operator *= (T val)
+    {
+        scale(val);
+        return *this;
+    }
+
+    QuaternionTempl<T> operator * (T val) const
+    {
+        QuaternionTempl<T> copy(*this);
+        copy.scale(val);
+        return copy;
+    }
+
     void normalize()
     {
         auto m = getMagnitude();
-        w /= m;
-        x /= m;
-        y /= m;
-        z /= m;
+        scale(static_cast<decltype(m)>(1) / m);
     }
 
     QuaternionTempl<T> getNormalized() const
     {
-        QuaternionTempl<T> r(w, x, y, z);
+        QuaternionTempl<T> r(*this);
         r.normalize();
         return r;
     }
@@ -209,6 +242,43 @@ public:
         return static_cast<T>(x * c.x + y * c.y + z * c.z); //casting out overflows (for integers, take care of it)
     }
 
+    Vector<T> operator * (T v) const
+    {
+        return Vector<T>(x * v, y * v, z * v);
+    }
+
+    Vector<T>& operator *= (T v)
+    {
+        x *= v;
+        y *= v;
+        z *= v;
+        return *this;
+    }
+
+    Vector<T>& operator -= (Vector<T> v)
+    {
+        x -= v.x;
+        y -= v.y;
+        z -= v.z;
+    }
+
+    Vector<T>& operator += (Vector<T> v)
+    {
+        x += v.x;
+        y += v.y;
+        z += v.z;
+    }
+
+    Vector<T> operator - (Vector<T> v) const
+    {
+        return  Vector<T>(x-v.x, y-v.y, z-v.z);
+    }
+
+    Vector<T> operator + (Vector<T> v) const
+    {
+        return  Vector<T>(x + v.x, y + v.y, z + v.z);
+    }
+
     inline void rotate(const Quaternion* q)
     {
         return rotate(*q);
@@ -232,7 +302,8 @@ public:
         p = q.getProduct(p);
 
         // quaternion multiplication: p * conj(q), stored back in p
-        p = p.getProduct(q.getConjugate());
+
+        p = p.getProduct(q.getConjugate().getNormalized());
 
         // p quaternion is now [0, x', y', z']
         x = static_cast<decltype(x)>(p.x);

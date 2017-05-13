@@ -5,7 +5,7 @@
 #endif
 
 #define LCD_BACK_LIGHT_SENS_DEGREE (0.15) //sensevity of when to turn on backlight
-#define SENSOR_6050_FIFO_HZ 20 //my update to motion_api, should be defined prior include
+#define SENSOR_6050_FIFO_HZ 10 //my update to motion_api, should be defined prior include
 #define USE_LCD
 #define INTERRUPT_PIN 2  // use pin 2 on Arduino Uno & most boards
 //#define READINGS_AMOUNT_AVR static_cast<uint8_t>((SENSOR_6050_FIFO_HZ) / 10 + 3) //how many reading to use to calc avr
@@ -38,13 +38,20 @@ inline void PersonalSensorCalibrate()
     //to get those sensor must be aligned and other scetch launched like 6050 example_raw
     //or http://wired.chillibasket.com/2015/01/calibrating-mpu6050/
     //those magic numbers are PERSONAL for each new device/board
-    mpu.setXGyroOffset(-63);
-    mpu.setYGyroOffset(-41);
-    mpu.setZGyroOffset(8);
+//    mpu.setXGyroOffset(-63);
+//    mpu.setYGyroOffset(-41);
+//    mpu.setZGyroOffset(8);
+//
+//    mpu.setXAccelOffset(418);
+//    mpu.setYAccelOffset(-622);
+//    mpu.setZAccelOffset(1173);
+    mpu.setXGyroOffset(-69);
+    mpu.setYGyroOffset(-44);
+    mpu.setZGyroOffset(12);
 
-    mpu.setXAccelOffset(418);
-    mpu.setYAccelOffset(-622);
-    mpu.setZAccelOffset(1173);
+    mpu.setXAccelOffset(818);
+    mpu.setYAccelOffset(-542);
+    mpu.setZAccelOffset(1200);
 }
 
 void printValues(float azimuth, float excl, float t = 0)
@@ -136,8 +143,8 @@ void setup()
     // make sure it worked (returns 0 if so)
     if (devStatus == 0)
     {
-        // turn on the DMP, now that it's ready
         mpu.setDMPEnabled(true);
+        // turn on the DMP, now that it's ready
         packetSize = mpu.dmpGetFIFOPacketSize();
         dmpReady = true;
         // enable Arduino interrupt detection
@@ -176,9 +183,84 @@ template <class I>
 typename my_helpers::std::enable_if<my_helpers::std::is_integral<I>::value, VectorFloat>::type
 toFloat(const Vector<I>& src)
 {
-    constexpr static float div = 1 << (sizeof(I) - 1);
+    constexpr static float div = 1 << (8 * sizeof(I) - 1);
     return VectorFloat (src.x / div, src.y / div, src.z / div);
 };
+
+//---------------------------------------------------------------------------------------------------
+
+void MahonyAHRSupdateIMU(const elapsedMillis& elapsed, const VectorFloat &halfv, Quaternion& q, float gx, float gy, float gz, const VectorFloat& accel)
+{
+    const static float timeConstant = 0.07f * (50 / SENSOR_6050_FIFO_HZ);
+    static float twoKp = (2.0f * .45f); // 2 * proportional gain (Kp)
+    using namespace my_helpers;
+
+    float dt  = elapsed / 1000.f;
+    float dt2 = dt * 0.5;
+
+
+
+    static float integralFBx = 0.0f,  integralFBy = 0.0f, integralFBz = 0.0f;	// integral error terms scaled by Ki
+    static VectorFloat gravity;
+
+    //float halfvx, halfvy, halfvz;
+    float halfex, halfey, halfez;
+    float qa, qb, qc;
+
+    //http://www.kircherelectronics.com/blog/index.php/11-android/sensors/10-low-pass-filter-linear-acceleration
+
+    float alpha  = timeConstant / (timeConstant + dt);
+    float alpha1 = 1 - alpha;
+    gravity *= alpha;
+    gravity += accel *  alpha1;
+
+    // Error is sum of cross product between estimated and measured direction of gravity
+    {
+        auto gravity1(gravity);
+        gravity1.normalize();
+        halfex = (gravity1.y * halfv.z - gravity1.z * halfv.y);
+        halfey = (gravity1.z * halfv.x - gravity1.x * halfv.z);
+        halfez = (gravity1.x * halfv.y - gravity1.y * halfv.x);
+    }
+
+    // Compute and apply integral feedback if enabled
+    if(!isZero(alpha1))
+    {
+        integralFBx += alpha1 * halfex;	// integral error scaled by Ki
+        integralFBy += alpha1 * halfey;
+        integralFBz += alpha1 * halfez;
+        gx += integralFBx;	// apply integral feedback
+        gy += integralFBy;
+        gz += integralFBz;
+    }
+    else {
+        integralFBx = 0.0f;	// prevent integral windup
+        integralFBy = 0.0f;
+        integralFBz = 0.0f;
+    }
+
+    // Apply proportional feedback
+    gx += twoKp * halfex;
+    gy += twoKp * halfey;
+    gz += twoKp * halfez;
+
+
+    // Integrate rate of change of quaternion
+    gx *= dt2;		// pre-multiply common factors
+    gy *= dt2;
+    gz *= dt2;
+    qa = q.w;
+    qb = q.x;
+    qc = q.y;
+    q.w += (-qb * gx - qc * gy - q.z * gz);
+    q.x += (qa * gx + qc * gz - q.z * gy);
+    q.y += (qa * gy - qb * gz + q.z * gx);
+    q.z += (qa * gz + qb * gy - qc * gx);
+
+    // Normalise quaternion
+    q.normalize();
+}
+//---------------------------------------------------------------------------------------------------
 
 void readSensor(my_helpers::Circular<decltype(az0), READINGS_AMOUNT_AVR>& az, my_helpers::Circular<decltype(el0), READINGS_AMOUNT_AVR>& el)
 {
@@ -206,57 +288,40 @@ void readSensor(my_helpers::Circular<decltype(az0), READINGS_AMOUNT_AVR>& az, my
                 static uint8_t  fifoBuffer[64]; // FIFO storage buffer
                 static Quaternion q;           // [w, x, y, z]         quaternion container
                 static VectorFloat gravity;
-                static VectorInt16 accel;
+                static elapsedMillis dt = 0;
 
                 if (fifoCount < packetSize)
                     break;
 
                 mpu.getFIFOBytes(fifoBuffer, packetSize);
                 fifoCount -= packetSize;
+
                 mpu.dmpGetQuaternion(msg.message.value.vals.current_quat, fifoBuffer);
                 mpu.dmpGetQuaternion(&q, fifoBuffer);
 
+                //gravity->altitude works better with not filtered values
                 mpu.dmpGetGravity(&gravity, &q);
                 gravity.normalize();
+
                 const auto elt = removeRotRad<decltype(el0)>(atan(gravity.x / sqrt(sqrf(gravity.y) + sqrf(gravity.z))));
                 el.push_back(elt);
 
-                static decltype(q.z)   zerr = 0;
-                static decltype(zerr)  last_ok_z = 0;
 
-                //ignoring z accel, because telescope don't fly
-                mpu.dmpGetAccel(&accel, fifoBuffer);
-                mpu.dmpGetLinearAccel(&accel, &accel, &gravity);
-                constexpr static int16_t acc_limit = 14;
-                bool noaccel = abs(accel.x) < acc_limit && abs(accel.y < acc_limit);// && abs(accel.z) < acc_limit;
+                VectorInt16 tmp;
+                mpu.dmpGetGyro(&tmp, fifoBuffer);
+                VectorFloat gyro(toFloat(tmp));
 
-                bool bad = noaccel && !calibrating_once && !clearing;
-                if (bad)
-                {
-                    constexpr static decltype(q.z) errweight = 0.80;
-                    zerr = zerr * errweight + (1 - errweight) * (q.z - last_ok_z);
-                    mpu.resetFIFO();
-                    fifoCount = 0;
-                }
-                else
-                {
-                    if (clearing)
-                        zerr = 0;
-                    last_ok_z = q.z - zerr;
-                }
+                mpu.dmpGetAccel(&tmp, fifoBuffer);
+                VectorFloat accel(toFloat(tmp));accel.normalize();
 
-                q.z = last_ok_z;
-                q.normalize();
-
-
-
-
-
-
+                MahonyAHRSupdateIMU(dt, gravity, q, gyro.x, gyro.y, gyro.z, accel);
+                interrupts();
 
                 //https://www.reddit.com/r/Astronomy/comments/3udenf/quaternion_matrix_or_euler_angles_conversion_to/
-                const auto azt = -2.f * atan2(q.z, q.w);
-                az.push_back(getAz(azt));
+                float azt = -2.f * atan2(q.z, q.w);
+                az.push_back_lpf(getAz(azt));
+                dt = 0;
+                interrupts();
             }
             while (fifoCount > 0);
         }
@@ -285,7 +350,7 @@ void loop()
     // if programming failed, don't try to do anything
     if (!dmpReady) return;
 
-    if (sensorDataReady)
+    while (sensorDataReady)
         readSensor(az, el);
 
 
@@ -372,7 +437,7 @@ void loop()
         int lig = light;
         interrupts(); //those asholes do not do sei() after checking timer!!
 
-        if (lig > 30000 && hadUsb > 60000)
+        if (lig > 20000 && hadUsb > 60000)
         {
 #ifdef USE_LCD
             digitalWrite(backLightPin, LOW);

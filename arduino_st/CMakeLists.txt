@@ -13,8 +13,6 @@ set(ARDUINO_CXX_FLAGS    "${ARDUINO_C_FLAGS} -felide-constructors -fno-threadsaf
 
 project(${PROJECT_NAME})
 
-set(${CMAKE_PROJECT_NAME}_SKETCH arduino_st.ino)
-
 #### Uncomment below additional settings as needed.
 #set(${CMAKE_PROJECT_NAME}_BOARD uno)
 set(${CMAKE_PROJECT_NAME}_PORT /dev/ttyACM0)
@@ -32,9 +30,11 @@ link_directories(/home/alex/.arduino15/packages/arduino/hardware/avr/1.6.18/libr
 link_directories(/home/alex/Work/arduino/libraries)
 include_directories(/home/alex/Work/arduino/libraries)
 
-#compatibility with arduino IDE, otherwise it will not find "MPU6050_6Axis_MotionApps20.h"
-include_directories(/home/alex/Work/arduino/libraries/MPU6050)
+#set(EMPLDIR ${CMAKE_SOURCE_DIR}/../arduino_libs/eMPL)
+#include_directories(${EMPLDIR})
 
 #https://github.com/queezythegreat/arduino-cmake#arduino-libraries
 generate_arduino_firmware(${CMAKE_PROJECT_NAME}
+        SKETCH arduino_st.ino
+        #SRCS ${EMPLDIR}/inv_gyro.c ${EMPLDIR}/inv_gyro_dmp_android.c
         ARDLIBS MPU6050 Wire LiquidCrystal I2CDev Serial)

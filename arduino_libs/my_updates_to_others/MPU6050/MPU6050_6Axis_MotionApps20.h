@@ -415,6 +415,7 @@ uint8_t MPU6050::dmpInitialize() {
             DEBUG_PRINTLN(F("Setting DLPF bandwidth to 42Hz..."));
             setDLPFMode(MPU6050_DLPF_BW_42);
 
+            //DMP sensor fusion works only with gyro at +-2000dps and accel +-2G
             DEBUG_PRINTLN(F("Setting gyro sensitivity to +/- 2000 deg/sec..."));
             setFullScaleGyroRange(MPU6050_GYRO_FS_2000);
 
@@ -633,7 +634,7 @@ uint8_t MPU6050::dmpGetQuaternion(Quaternion *q, const uint8_t* packet)
     // TODO: accommodate different arrangements of sent data (ONLY default supported now)
     int16_t qI[4];
     uint8_t status = dmpGetQuaternion(qI, packet);
-    constexpr static float  div = 1 << (sizeof(qI[0]) - 1);
+    constexpr static float  div = 1 << (8 * sizeof(qI[0]) - 1);
     if (status == 0)
     {
         q -> w = (float)qI[0] / div;

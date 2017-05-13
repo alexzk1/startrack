@@ -13,6 +13,21 @@
 #include "star_math.h"
 
 
+//if defined - writes all Z-readings to the file (for debug purposes)
+//#define EXPORT_Z
+
+
+
+#ifdef EXPORT_Z
+#include <QFile>
+#include <QDir>
+
+#ifndef NO_STELLARIUM_RUN
+#define NO_STELLARIUM_RUN
+#endif
+
+#endif
+
 Q_DECLARE_METATYPE(QSerialPortInfo);
 
 static const QString nightScheme = "QWidget {background-color: #660000;}";
@@ -132,6 +147,14 @@ void MainWindow::startComPoll()
     {
         using namespace std::chrono_literals;
         using namespace ard_st;
+
+#ifdef EXPORT_Z
+        QFile of (QDir::homePath()+"/sensor_values.csv");
+        long os_counter = 0;
+        of.open(QFile::WriteOnly | QFile::Truncate | QFile::Text);
+        of.write("Azimuth, Altitude, W, X, Y, Z, Sample\n");
+#endif
+
         while (!(*stop)) //device reconnect loop
         {
             QSerialPort port(ui->cbPorts->currentData().value<QSerialPortInfo>());
@@ -162,13 +185,15 @@ void MainWindow::startComPoll()
                         msg.message.Command = 'C';
                         port.write(header.c_str(), static_cast<int>(header.size()));
                         port.write(msg.buffer, sizeof(msg.buffer));
-                        port.waitForBytesWritten(5000);
+                        if (*stop || !port.waitForBytesWritten(5000))
+                            break;
                         std::this_thread::sleep_for(500ms);
                     }
 
                     msg.message.Command = (shouldSet)?'S':'R';
                     port.write(header.c_str(), static_cast<int>(header.size()));
                     port.write(msg.buffer, sizeof(msg.buffer));
+
                     if (*stop || !port.waitForBytesWritten(5000))
                         break;
 
@@ -190,6 +215,18 @@ void MainWindow::startComPoll()
                             //                                  << msg.message.value.vals.current_quat[2]
                             //                                  << msg.message.value.vals.current_quat[3];
                             emit this->onArduinoRead(az, el);
+#ifdef EXPORT_Z
+
+                            const static double div = 1 << (8 * sizeof(msg.message.value.vals.current_quat[0]) - 1);
+                            of.write(QString("%1,%2,%3,%4,%5,%6,%7\n")
+                                     .arg(degrees(az))
+                                     .arg(degrees(el))
+                                     .arg(msg.message.value.vals.current_quat[0] / div)
+                                    .arg(msg.message.value.vals.current_quat[1] / div)
+                                    .arg(msg.message.value.vals.current_quat[2] / div)
+                                    .arg(msg.message.value.vals.current_quat[3] / div)
+                                    .arg(os_counter++).toUtf8());
+#endif
                         }
                     }
                     else
@@ -228,7 +265,7 @@ void MainWindow::arduinoRead(float az_rad, float el_rad)
         double ra, dec;
         convertAZ_RA(static_cast<double>(az_rad), static_cast<double>(el_rad), ui->latBox->valueRadians(), ui->lonBox->valueRadians(), ra, dec);
         //qDebug() << "Az(deg): "<< degrees(az_rad)<<" ALT(deg): "<<degrees(el_rad);
-       // qDebug() << "RA(hrs): "<< degrees(ra) / 15 << " DEC(deg): "<< degrees(dec);
+        // qDebug() << "RA(hrs): "<< degrees(ra) / 15 << " DEC(deg): "<< degrees(dec);
         if (stellarium.size())
         {
 
@@ -267,6 +304,9 @@ void MainWindow::onStellariumDataReady(QTcpSocket *p)
         double az, alt;
         convertRA_AZ(ra, dec, ui->latBox->valueRadians(), ui->lonBox->valueRadians(), az, alt);
         //qDebug() << "Az(deg): "<< degrees(az)<<" ALT(deg): "<<degrees(alt);
+        //that is mega-trick, want to ensure that star selected is above horizont so hyroscope will go ok
+        //device MUST reset when connected (default for arduino)
+        startComPoll();
         writeToArduino(static_cast<float>(az), static_cast<float>(alt));
     }
 }

@@ -7,26 +7,23 @@ namespace my_helpers
 {
     using circular_counter_t = uint8_t;
 
+#define EPSILON(T) (1./epsilon_t<T>::mul())
     template <typename T>
     struct epsilon_t
     {
         inline static T mul() { return 0;};
-        inline static T epsilon()
-        {
-            return 1./ static_cast<T>(mul);
-        }
     };
 
     template <>
     struct epsilon_t<uint8_t>
     {
-        inline static uint8_t epsilon(){ return 0;}
+        inline static uint8_t mul(){ return 1;}
     };
 
     template <>
     struct epsilon_t<int>
     {
-        inline static int epsilon(){ return 0;}
+        inline static int mul(){ return 1;}
     };
 
 
@@ -45,8 +42,24 @@ namespace my_helpers
     template <class T>
     bool isZero(T v)
     {
-        return (abs(v) <= epsilon_t<T>::epsilon());
+        epsilon_t<T> tmp;
+        return (abs(v) <= EPSILON(T));
     }
+
+    template <typename T>
+    typename std::enable_if<std::is_unsigned<T>::value, int>::type
+    inline constexpr signum(T x)
+    {
+        return T(0) < x;
+    }
+
+    template <typename T>
+    typename std::enable_if<std::is_signed<T>::value, int>::type
+    inline constexpr signum(T x)
+    {
+        return (T(0) < x) - (x < T(0));
+    }
+
 
     //not really circular buffer yet, but calcs avr. value and can do simple low-pass
     template <typename T, circular_counter_t buff_size = 3, bool use_volatiles = false>
@@ -67,10 +80,12 @@ namespace my_helpers
             delta %= buff_size; //that we need, because holder type can be unsigned
             return nextIndex(index, buff_size - delta);
         }
+
     public:
         using values_type = T;
         Circular(T def)
         {
+
             clear(def);
         }
 
@@ -94,9 +109,9 @@ namespace my_helpers
             insPos = nextIndex(insPos);
         }
 
-        void push_back_lpf(T value, double alpha =0.8)
+        void push_back_lpf(T value, double alpha = 0.8)
         {
-            push_back(static_cast<T>(value + alpha *(back() - value)));
+            push_back(static_cast<T>(back() * alpha + (1 - alpha) * value));
         }
 
         const T& back() const
