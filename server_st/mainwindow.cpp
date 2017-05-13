@@ -304,9 +304,6 @@ void MainWindow::onStellariumDataReady(QTcpSocket *p)
         double az, alt;
         convertRA_AZ(ra, dec, ui->latBox->valueRadians(), ui->lonBox->valueRadians(), az, alt);
         //qDebug() << "Az(deg): "<< degrees(az)<<" ALT(deg): "<<degrees(alt);
-        //that is mega-trick, want to ensure that star selected is above horizont so hyroscope will go ok
-        //device MUST reset when connected (default for arduino)
-        startComPoll();
         writeToArduino(static_cast<float>(az), static_cast<float>(alt));
     }
 }
