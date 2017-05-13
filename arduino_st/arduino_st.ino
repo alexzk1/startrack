@@ -164,6 +164,7 @@ void setup()
         // 2 = DMP configuration updates failed
         // (if it's going to break, usually the code will be 1)
     }
+    Serial.begin(115200);
 }
 
 static float az0  = 0;
@@ -188,76 +189,51 @@ toFloat(const Vector<I>& src)
 };
 
 //---------------------------------------------------------------------------------------------------
+#define twoKpDef  (2.0f * 0.5f)
+#define twoKiDef  (2.0f * 0.25f)
+#define betaDef	  0.2f
 
-void MahonyAHRSupdateIMU(const elapsedMillis& elapsed, const VectorFloat &halfv, Quaternion& q, float gx, float gy, float gz, const VectorFloat& accel)
+void MadgwickAHRSupdateIMU(float dt, Quaternion& q, float gx, float gy, float gz,  const VectorFloat& a)
 {
-    const static float timeConstant = 0.07f * (50 / SENSOR_6050_FIFO_HZ);
-    static float twoKp = (2.0f * .45f); // 2 * proportional gain (Kp)
-    using namespace my_helpers;
+    float _2q0, _2q1, _2q2, _2q3, _4q0, _4q1, _4q2 ,_8q1, _8q2, q0q0, q1q1, q2q2, q3q3;
 
-    float dt  = elapsed / 1000.f;
-    float dt2 = dt * 0.5;
+    // Rate of change of quaternion from gyroscope
+    Quaternion qDot{
+            0.5f * (-q.x * gx - q.y * gy - q.z * gz),
+            0.5f * (q.w * gx  + q.y * gz - q.z * gy),
+            0.5f * (q.w * gy  - q.x * gz + q.z * gx),
+            0.5f * (q.w * gz  + q.x * gy - q.y * gx)
+    };
 
+    // Compute feedback only if accelerometer measurement valid (avoids NaN in accelerometer normalisation)
+    // Auxiliary variables to avoid repeated arithmetic
+    _2q0 = 2.0f * q.w;
+    _2q1 = 2.0f * q.x;
+    _2q2 = 2.0f * q.y;
+    _2q3 = 2.0f * q.z;
+    _4q0 = 4.0f * q.w;
+    _4q1 = 4.0f * q.x;
+    _4q2 = 4.0f * q.y;
+    _8q1 = 8.0f * q.x;
+    _8q2 = 8.0f * q.y;
+    q0q0 = sqrf(q.w);
+    q1q1 = sqrf(q.x);
+    q2q2 = sqrf(q.y);
+    q3q3 = sqrf(q.z);
 
+    // Gradient decent algorithm corrective step
+    Quaternion so{
+            _4q0 * q2q2 + _2q2 * a.x + _4q0 * q1q1 - _2q1 * a.y,
+            _4q1 * q3q3 - _2q3 * a.x + 4.0f * q0q0 * q.x - _2q0 * a.y - _4q1 + _8q1 * q1q1 + _8q1 * q2q2 + _4q1 * a.z,
+            4.0f * q0q0 * q.y + _2q0 * a.x + _4q2 * q3q3 - _2q3 * a.y - _4q2 + _8q2 * q1q1 + _8q2 * q2q2 + _4q2 * a.z,
+            4.0f * q1q1 * q.z - _2q1 * a.x + 4.0f * q2q2 * q.z - _2q2 * a.y
+    };
+    so.normalize();
+    so.scale(betaDef);
+    qDot -= so;
+    qDot *= dt;
 
-    static float integralFBx = 0.0f,  integralFBy = 0.0f, integralFBz = 0.0f;	// integral error terms scaled by Ki
-    static VectorFloat gravity;
-
-    //float halfvx, halfvy, halfvz;
-    float halfex, halfey, halfez;
-    float qa, qb, qc;
-
-    //http://www.kircherelectronics.com/blog/index.php/11-android/sensors/10-low-pass-filter-linear-acceleration
-
-    float alpha  = timeConstant / (timeConstant + dt);
-    float alpha1 = 1 - alpha;
-    gravity *= alpha;
-    gravity += accel *  alpha1;
-
-    // Error is sum of cross product between estimated and measured direction of gravity
-    {
-        auto gravity1(gravity);
-        gravity1.normalize();
-        halfex = (gravity1.y * halfv.z - gravity1.z * halfv.y);
-        halfey = (gravity1.z * halfv.x - gravity1.x * halfv.z);
-        halfez = (gravity1.x * halfv.y - gravity1.y * halfv.x);
-    }
-
-    // Compute and apply integral feedback if enabled
-    if(!isZero(alpha1))
-    {
-        integralFBx += alpha1 * halfex;	// integral error scaled by Ki
-        integralFBy += alpha1 * halfey;
-        integralFBz += alpha1 * halfez;
-        gx += integralFBx;	// apply integral feedback
-        gy += integralFBy;
-        gz += integralFBz;
-    }
-    else {
-        integralFBx = 0.0f;	// prevent integral windup
-        integralFBy = 0.0f;
-        integralFBz = 0.0f;
-    }
-
-    // Apply proportional feedback
-    gx += twoKp * halfex;
-    gy += twoKp * halfey;
-    gz += twoKp * halfez;
-
-
-    // Integrate rate of change of quaternion
-    gx *= dt2;		// pre-multiply common factors
-    gy *= dt2;
-    gz *= dt2;
-    qa = q.w;
-    qb = q.x;
-    qc = q.y;
-    q.w += (-qb * gx - qc * gy - q.z * gz);
-    q.x += (qa * gx + qc * gz - q.z * gy);
-    q.y += (qa * gy - qb * gz + q.z * gx);
-    q.z += (qa * gz + qb * gy - qc * gx);
-
-    // Normalise quaternion
+    q+=qDot;
     q.normalize();
 }
 //---------------------------------------------------------------------------------------------------
@@ -283,21 +259,31 @@ void readSensor(my_helpers::Circular<decltype(az0), READINGS_AMOUNT_AVR>& az, my
         if (mpuIntStatus & 0x02)
         {
             // wait for correct available data length, should be a VERY short wait
+            float dte = 1.f/SENSOR_6050_FIFO_HZ;
+            {
+                static elapsedMillis dt = 0;
+                dte += dt;
+                dt = 0;
+                interrupts();
+            }
+
             do
             {
-                static uint8_t  fifoBuffer[64]; // FIFO storage buffer
+                static uint8_t fifoBuffer[64]; // FIFO storage buffer
                 static Quaternion q;           // [w, x, y, z]         quaternion container
                 static VectorFloat gravity;
-                static elapsedMillis dt = 0;
+
 
                 if (fifoCount < packetSize)
-                    break;
+                    return;
 
                 mpu.getFIFOBytes(fifoBuffer, packetSize);
+
                 fifoCount -= packetSize;
 
                 mpu.dmpGetQuaternion(msg.message.value.vals.current_quat, fifoBuffer);
                 mpu.dmpGetQuaternion(&q, fifoBuffer);
+
 
                 //gravity->altitude works better with not filtered values
                 mpu.dmpGetGravity(&gravity, &q);
@@ -311,22 +297,20 @@ void readSensor(my_helpers::Circular<decltype(az0), READINGS_AMOUNT_AVR>& az, my
                 mpu.dmpGetGyro(&tmp, fifoBuffer);
                 VectorFloat gyro(toFloat(tmp));
 
-                mpu.dmpGetAccel(&tmp, fifoBuffer);
-                VectorFloat accel(toFloat(tmp));accel.normalize();
 
-                MahonyAHRSupdateIMU(dt, gravity, q, gyro.x, gyro.y, gyro.z, accel);
-                interrupts();
+                mpu.dmpGetAccel(&tmp, fifoBuffer);
+                VectorFloat accel(toFloat(tmp));
+                accel.normalize();
+
+                MadgwickAHRSupdateIMU(dte, q, gyro.x, gyro.y, gyro.z, accel);
 
                 //https://www.reddit.com/r/Astronomy/comments/3udenf/quaternion_matrix_or_euler_angles_conversion_to/
                 float azt = -2.f * atan2(q.z, q.w);
-                az.push_back_lpf(getAz(azt));
-                dt = 0;
-                interrupts();
-            }
-            while (fifoCount > 0);
+                az.push_back(getAz(azt));
+            }while(fifoCount >= packetSize);
+
         }
     }
-    Serial.begin(115200);
 }
 
 // ================================================================

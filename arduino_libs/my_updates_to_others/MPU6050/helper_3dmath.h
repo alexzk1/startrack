@@ -156,6 +156,34 @@ public:
         return copy;
     }
 
+    QuaternionTempl<T>& operator -= (const QuaternionTempl<T>& v)
+    {
+        w -= v.w;
+        x -= v.x;
+        y -= v.y;
+        z -= v.z;
+        return *this;
+    }
+
+    QuaternionTempl<T>& operator += (const QuaternionTempl<T>& v)
+    {
+        w += v.w;
+        x += v.x;
+        y += v.y;
+        z += v.z;
+        return *this;
+    }
+
+    QuaternionTempl<T> operator - (const QuaternionTempl<T>& v) const
+    {
+        return  QuaternionTempl<T>(w - v.w, x-v.x, y-v.y, z-v.z);
+    }
+
+    QuaternionTempl<T> operator + (const QuaternionTempl<T>& v) const
+    {
+        return  QuaternionTempl<T>(w + v.w, x + v.x, y + v.y, z + v.z);
+    }
+
     void normalize()
     {
         auto m = getMagnitude();
@@ -255,26 +283,28 @@ public:
         return *this;
     }
 
-    Vector<T>& operator -= (Vector<T> v)
+    Vector<T>& operator -= (const Vector<T>& v)
     {
         x -= v.x;
         y -= v.y;
         z -= v.z;
+        return *this;
     }
 
-    Vector<T>& operator += (Vector<T> v)
+    Vector<T>& operator += (const Vector<T>& v)
     {
         x += v.x;
         y += v.y;
         z += v.z;
+        return *this;
     }
 
-    Vector<T> operator - (Vector<T> v) const
+    Vector<T> operator - (const Vector<T>& v) const
     {
         return  Vector<T>(x-v.x, y-v.y, z-v.z);
     }
 
-    Vector<T> operator + (Vector<T> v) const
+    Vector<T> operator + (const Vector<T>& v) const
     {
         return  Vector<T>(x + v.x, y + v.y, z + v.z);
     }
