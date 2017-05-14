@@ -209,11 +209,7 @@ void MainWindow::startComPoll()
                             float az, el;
                             readAzEl(msg.message.value, &az, &el);
                             //qDebug() <<"Az = " <<degrees(az) << ";  El = "<<degrees(el);
-                            //                            qDebug() <<"Quat: "
-                            //                                  << msg.message.value.vals.current_quat[0]
-                            //                                  << msg.message.value.vals.current_quat[1]
-                            //                                  << msg.message.value.vals.current_quat[2]
-                            //                                  << msg.message.value.vals.current_quat[3];
+
                             emit this->onArduinoRead(az, el);
 #ifdef EXPORT_Z
 
@@ -265,7 +261,7 @@ void MainWindow::arduinoRead(float az_rad, float el_rad)
         double ra, dec;
         convertAZ_RA(static_cast<double>(az_rad), static_cast<double>(el_rad), ui->latBox->valueRadians(), ui->lonBox->valueRadians(), ra, dec);
         //qDebug() << "Az(deg): "<< degrees(az_rad)<<" ALT(deg): "<<degrees(el_rad);
-        // qDebug() << "RA(hrs): "<< degrees(ra) / 15 << " DEC(deg): "<< degrees(dec);
+        //qDebug() << "RA(hrs): "<< degrees(ra) / 15 << " DEC(deg): "<< degrees(dec);
         if (stellarium.size())
         {
 

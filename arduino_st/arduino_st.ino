@@ -334,7 +334,7 @@ void loop()
     // if programming failed, don't try to do anything
     if (!dmpReady) return;
 
-    while (sensorDataReady)
+    if (sensorDataReady)
         readSensor(az, el);
 
 

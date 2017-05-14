@@ -81,13 +81,13 @@ void inline convertRA_AZ(const double ra_rad, const double dec_rad, const double
 //http://star-www.st-and.ac.uk/~fv/webnotes/chapter7.htm
 void inline convertAZ_RA(const double azimuth_rad, const double alt_rad, const double latitude_rad, const double longitude_rad, double& ra_rad, double& dec_rad)
 {
+    double s = (azimuth_rad > M_PI)? azimuth_rad - 2 * M_PI : azimuth_rad;
     double sin_th = sin(alt_rad) * sin(latitude_rad) + cos(alt_rad) * cos(latitude_rad) * cos (azimuth_rad);
     dec_rad = asin(sin_th);
 
-    //double sin_H  = -sin(azimuth_rad) * cos(alt_rad) / cos(dec_rad);
-    double cos_H = (sin(alt_rad) - sin(latitude_rad) * sin_th) / (cos(dec_rad) * cos(latitude_rad));
-    double H = acos(cos_H);
-    //double H = asin(sin_H);
+    double sin_H  = -sin(azimuth_rad) * cos(alt_rad) / cos(dec_rad);
+    double cos_H  = (sin(alt_rad) - sin(latitude_rad) * sin_th) / (cos(dec_rad) * cos(latitude_rad));
+    double H      = atan2(sin_H, cos_H);
 
     //qDebug() << "H : "<<H;
     ra_rad = radians(getLSTDegrees(degrees(longitude_rad))) - H;
