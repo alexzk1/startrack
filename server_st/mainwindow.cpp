@@ -291,7 +291,7 @@ void MainWindow::arduinoRead(float az_rad, float el_rad)
                 if (!database.isOpen())
                 {
                     const static QString datestr = QDate::currentDate().toString("dd_MMM_yyyy");
-                    QString sqlDb = ui->editFolder->text() + QDir::separator() + datestr + ".db";
+                    QString sqlDb = ui->editFolder->text() + QDir::separator() + datestr + "_startrack.db";
 
                     database.setDatabaseName(sqlDb);
                     if (database.open())
