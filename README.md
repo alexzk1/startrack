@@ -7,7 +7,6 @@ This project aims couple things:
 
 TODO:
 * send full sensor's qutarnium to the PC for the record. It can help with camera rotation detection.
-* store all data(ra, dec, qutarnium) into sql-lite db (once per 5seconds or so). Each new observation day makes new file/db.
 * need a scripts, which will categorize that sql db and pictures from camera in folder automatically on desktop (initially DB is on laptop).
 * addition to astroed - put all that data in use together in picture processing
 * add some query to somewhere, which will reveal star pictured by that RA/DEC, not sure if stellarium can do that automatically
@@ -24,5 +23,10 @@ what and where I see.
 * find visually be telescope any star (with device attached to telescope)
 * pick the same star in steallrium and press ctrl + 1 (or any other number associated with connection, don't miss with alt+1 which do something else and fake for us)
 * now device shows exact alt/azimut what was in steallarium and keeps tracking moves further
+* store all data(ra, dec, qutarnium) into sql-lite db (once per 5seconds or so). Each new observation day makes new file/db.
 
 3. It back tracks on map, once you have aligned device by any star it will start tracking on stellarium map any moves of the telescope.
+
+Limitations:
+It has drift. Pretty big as for telescope, but still device is usable. If you point some object, then "jump" to other it will track accurate enough.
+So system is ok for home usage with high light pollution and limited room (when you have to move telescope) - it still gives position, just need to "reclibrate" on map each time.
