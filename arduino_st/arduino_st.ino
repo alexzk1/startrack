@@ -20,7 +20,7 @@
 #ifdef USE_LCD
 #include "LiquidCrystal.h"
 LiquidCrystal lcd(4, 5, 10, 11, 12, 13);
-#define MAX_BRIGHTNESS 50
+#define MAX_BRIGHTNESS 15
 #define backLightPin 3
 #endif
 
@@ -442,7 +442,7 @@ void loop()
             if (lig > 7000 && aw_once)
             {
 
-                analogWrite(backLightPin, 10);
+                analogWrite(backLightPin, 5);
                 aw_once = false;
             }
 #endif
