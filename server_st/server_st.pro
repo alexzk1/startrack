@@ -4,7 +4,7 @@
 #
 #-------------------------------------------------
 
-QT       += core gui serialport network
+QT       += core gui serialport network sql
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 TARGET = server_st

@@ -11,16 +11,18 @@
 #include <QTcpSocket>
 #include "stell_msg.h"
 #include "star_math.h"
-
+#include <QDir>
+#include <QFileDialog>
+#include <QtSql/QtSql>
 
 //if defined - writes all Z-readings to the file (for debug purposes)
 //#define EXPORT_Z
 
-
+#define SQL_DRIVER "QSQLITE"
 
 #ifdef EXPORT_Z
 #include <QFile>
-#include <QDir>
+
 
 #ifndef NO_STELLARIUM_RUN
 #define NO_STELLARIUM_RUN
@@ -46,6 +48,8 @@ MainWindow::MainWindow(QWidget *parent) :
 
     ui->latBox->setPrefixType(AngleSpinBox::PrefixType::Latitude);
     ui->lonBox->setPrefixType(AngleSpinBox::PrefixType::Longitude);
+
+    database = QSqlDatabase::addDatabase(SQL_DRIVER, "DB");
 
     connect(this, &MainWindow::onArduinoRead, this, &MainWindow::arduinoRead, Qt::QueuedConnection);
 
@@ -82,6 +86,8 @@ MainWindow::~MainWindow()
 {
     comThread.reset();
     writeSettings(this);
+    if (database.isOpen())
+        database.close();
     delete ui;
 }
 
@@ -105,7 +111,8 @@ void MainWindow::recurseRead(QSettings &settings, QObject *object)
     ui->lonBox->setRadians(settings.value("Longitude", 0).toDouble());
     ui->latBox->setRadians(settings.value("Latitude", 0).toDouble());
     ui->cbNight->setChecked(settings.value("Night", false).toBool());
-
+    ui->cbUseDb->setChecked(settings.value("UseDb", true).toBool());
+    ui->editFolder->setText(settings.value("Folder", QDir::homePath()).toString());
 }
 
 void MainWindow::recurseWrite(QSettings &settings, QObject *object)
@@ -116,7 +123,8 @@ void MainWindow::recurseWrite(QSettings &settings, QObject *object)
     settings.setValue("Longitude", ui->lonBox->valueRadians());
     settings.setValue("Latitude",  ui->latBox->valueRadians());
     settings.setValue("Night", ui->cbNight->isChecked());
-
+    settings.setValue("UseDb", ui->cbUseDb->isChecked());
+    settings.setValue("Folder", ui->editFolder->text());
 }
 
 void MainWindow::on_pushButton_clicked()
@@ -278,6 +286,34 @@ void MainWindow::arduinoRead(float az_rad, float el_rad)
 
                 s.second->write(msg.buffer, sizeof(ToStellMessage));
             }
+            if (ui->cbUseDb->isChecked())
+            {
+                if (!database.isOpen())
+                {
+                    const static QString datestr = QDate::currentDate().toString("dd_MMM_yyyy");
+                    QString sqlDb = ui->editFolder->text() + QDir::separator() + datestr + ".db";
+
+                    database.setDatabaseName(sqlDb);
+                    if (database.open())
+                    {
+                        //ensruing it has all needed tables
+                        QSqlQuery sql(database);
+                        qDebug() <<"CREATE TABLE: " <<
+                                   sql.exec("CREATE TABLE IF NOT EXISTS Track(ID integer primary key asc, "
+                                            "Az_rad REAL not null, Alt_rad REAL not null, LocalDt INTEGER not null, W INTEGER, X INTEGER, Y INTEGER, Z INTEGER);"
+                                            );
+                        qDebug() <<"CREATE INDEX: " <<
+                                   sql.exec("CREATE UNIQUE INDEX IF NOT EXISTS Track_LocalDt ON Track(LocalDt);");
+                    }
+                }
+
+                if (database.isOpen())
+                {
+                    QSqlQuery sql(database);
+                    sql.exec(QString("INSERT OR REPLACE INTO Track(Az_rad, Alt_rad, LocalDt) VALUES(%1, %2, %3)")
+                             .arg(az_rad).arg(el_rad).arg(QDateTime::currentMSecsSinceEpoch()));
+                }
+            }
         }
     }
 }
@@ -312,3 +348,15 @@ void MainWindow::on_cbNight_toggled(bool checked)
         qApp->setStyleSheet("");
 }
 
+
+void MainWindow::on_btnSelectFodler_clicked()
+{
+    QString dir = QFileDialog::getExistingDirectory(this, tr("Select folderto save tracks"), ui->editFolder->text(),
+                                                    QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
+    if (!dir.isEmpty())
+    {
+        ui->editFolder->setText(dir);
+        if (database.isOpen())
+            database.close();
+    }
+}

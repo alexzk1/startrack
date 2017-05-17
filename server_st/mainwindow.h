@@ -11,6 +11,7 @@
 #include <QTcpServer>
 #include <QPointer>
 #include <QTcpSocket>
+#include <QSqlDatabase>
 
 namespace Ui {
     class MainWindow;
@@ -34,6 +35,8 @@ private slots:
 
     void on_cbNight_toggled(bool checked);
 
+    void on_btnSelectFodler_clicked();
+
 private:
     Ui::MainWindow *ui;
     utility::runner_t comThread;
@@ -43,6 +46,7 @@ private:
     std::shared_ptr<QTcpServer> server;
     std::map<uint64_t, QPointer<QTcpSocket>> stellarium; //decided to have many possible connections, each one can track or rule device
     std::atomic<bool> readyToTrackMap;
+    QSqlDatabase database;
 
     void startComPoll();
     void writeToArduino(float az_rad, float el_rad);
