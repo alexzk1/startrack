@@ -311,7 +311,7 @@ void MainWindow::arduinoRead(float az_rad, float el_rad)
                 if (database.isOpen())
                 {
                     QSqlQuery sql(database);
-                    sql.exec(QString("INSERT OR REPLACE INTO Track(Az_rad, Alt_rad, RA_rad, DEC_rad, LocalDt) VALUES(%1, %2, %3)")
+                    sql.exec(QString("INSERT OR REPLACE INTO Track(Az_rad, Alt_rad, RA_rad, DEC_rad, LocalDt) VALUES(%1, %2, %3, %4, %5)")
                              .arg(az_rad).arg(el_rad).arg(ra).arg(dec)
                              .arg(QDateTime::currentMSecsSinceEpoch()));
                 }
