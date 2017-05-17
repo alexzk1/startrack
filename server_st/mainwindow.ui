@@ -147,6 +147,9 @@
     </item>
     <item row="9" column="0" colspan="2">
      <widget class="QCheckBox" name="cbUseDb">
+      <property name="toolTip">
+       <string>Check to record all moves once it is aligned by Stellarium.</string>
+      </property>
       <property name="text">
        <string>Store tracks into DB.</string>
       </property>
