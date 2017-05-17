@@ -151,7 +151,7 @@
        <string>Check to record all moves once it is aligned by Stellarium.</string>
       </property>
       <property name="text">
-       <string>Store tracks into DB.</string>
+       <string>&amp;Store tracks into DB.</string>
       </property>
      </widget>
     </item>
