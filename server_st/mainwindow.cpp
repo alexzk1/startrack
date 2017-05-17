@@ -300,7 +300,8 @@ void MainWindow::arduinoRead(float az_rad, float el_rad)
                         QSqlQuery sql(database);
                         qDebug() <<"CREATE TABLE: " <<
                                    sql.exec("CREATE TABLE IF NOT EXISTS Track(ID integer primary key asc, "
-                                            "Az_rad REAL not null, Alt_rad REAL not null, LocalDt INTEGER not null, W INTEGER, X INTEGER, Y INTEGER, Z INTEGER);"
+                                            "Az_rad REAL not null, Alt_rad REAL not null, LocalDt INTEGER not null, RA_rad not null, DEC_rad not null, "
+                                            "W INTEGER, X INTEGER, Y INTEGER, Z INTEGER);"
                                             );
                         qDebug() <<"CREATE INDEX: " <<
                                    sql.exec("CREATE UNIQUE INDEX IF NOT EXISTS Track_LocalDt ON Track(LocalDt);");
@@ -310,8 +311,9 @@ void MainWindow::arduinoRead(float az_rad, float el_rad)
                 if (database.isOpen())
                 {
                     QSqlQuery sql(database);
-                    sql.exec(QString("INSERT OR REPLACE INTO Track(Az_rad, Alt_rad, LocalDt) VALUES(%1, %2, %3)")
-                             .arg(az_rad).arg(el_rad).arg(QDateTime::currentMSecsSinceEpoch()));
+                    sql.exec(QString("INSERT OR REPLACE INTO Track(Az_rad, Alt_rad, RA_rad, DEC_rad, LocalDt) VALUES(%1, %2, %3)")
+                             .arg(az_rad).arg(el_rad).arg(ra).arg(dec)
+                             .arg(QDateTime::currentMSecsSinceEpoch()));
                 }
             }
         }
