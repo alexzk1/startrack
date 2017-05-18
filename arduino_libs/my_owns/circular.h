@@ -79,6 +79,7 @@ namespace my_helpers
             delta %= buff_size; //that we need, because holder type can be unsigned
             return nextIndex(index, buff_size - delta);
         }
+
     public:
         using values_type = T;
         void clear(T def)
@@ -90,7 +91,22 @@ namespace my_helpers
 
         const T& back() const
         {
-            return *(buffer + prevIndex(insPos));
+            return *(buffer + end());
+        }
+
+        const T& first() const
+        {
+            return *(buffer + begin());
+        }
+
+        counter_t begin() const
+        {
+            return nextIndex(insPos, 0);
+        }
+
+        counter_t end() const
+        {
+            return prevIndex(insPos);
         }
 
         T lastDelta() const
@@ -109,13 +125,17 @@ namespace my_helpers
             return buff_size;
         }
 
-    protected:
-        void push_back(T value)
+        void push_back_plain(T value)
         {
             buffer[insPos] = value;
             insPos = nextIndex(insPos);
         }
 
+        T at(counter_t index) const
+        {
+            return buffer[nextIndex(index, 0)];
+        }
+        virtual ~CBuffer() = default;
     };
 
     template <typename T, bool use_volatiles = false, typename parent_t = CBuffer<T, 2, use_volatiles>>
@@ -133,12 +153,12 @@ namespace my_helpers
         LowPassFilter(LowPassFilter&&)                 = default;
         LowPassFilter&operator=(const LowPassFilter&)  = default;
         LowPassFilter&operator=(LowPassFilter&&)       = default;
-        ~LowPassFilter()                               = default; //yep, yep, no virtuals on MK!
+        ~LowPassFilter()                               = default;
 
 
         void push_back(T value, double alpha = 0.8)
         {
-            parent_t::push_back(static_cast<T>(parent_t::back() * alpha +  value * (1 - alpha)));
+            parent_t::push_back_plain(static_cast<T>(parent_t::back() * alpha +  value * (1 - alpha)));
         }
 
         operator T() const
@@ -147,6 +167,42 @@ namespace my_helpers
         }
     };
 
+    template <typename T, bool use_volatiles = false, typename parent_t = CBuffer<T, 3, use_volatiles>>
+    class HighPassFilter : public parent_t
+    {
+    private:
+        double alpha;
+    public:
+
+        HighPassFilter(T def, double alpha):
+        alpha(alpha)
+        {
+
+            parent_t::clear(def);
+        }
+
+        HighPassFilter()                                = delete;
+        HighPassFilter(const HighPassFilter&)           = default;
+        HighPassFilter(HighPassFilter&&)                = default;
+        HighPassFilter&operator=(const HighPassFilter&) = default;
+        HighPassFilter&operator=(HighPassFilter&&)      = default;
+        ~HighPassFilter()                               = default;
+
+        void push_back(T value)
+        {
+            parent_t::push_back_plain(value);
+        }
+
+        operator T() const
+        {
+            T y = parent_t::first();
+            for (typename parent_t::counter_t i = parent_t::begin() + 1, sz = parent_t::begin() + 1 + parent_t::size(); i < sz; ++i)
+            {
+                y = alpha * (y + parent_t::at(i) - parent_t::at(i - 1));
+            }
+            return y;
+        }
+    };
 
     template <class T>
     T removeRotRad(T value)

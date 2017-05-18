@@ -189,7 +189,7 @@ toFloat(const Vector<I>& src)
 //---------------------------------------------------------------------------------------------------
 #define twoKpDef  (2.0f * 0.5f)
 #define twoKiDef  (2.0f * 0.25f)
-#define betaDef	  0.2f
+#define betaDef	  0.05f
 
 void MadgwickAHRSupdateIMU(float dt, Quaternion& q, float gx, float gy, float gz,  const VectorFloat& a)
 {
@@ -235,8 +235,8 @@ void MadgwickAHRSupdateIMU(float dt, Quaternion& q, float gx, float gy, float gz
     q.normalize();
 }
 //---------------------------------------------------------------------------------------------------
-
-void readSensor(my_helpers::LowPassFilter<decltype(az0)>& az, my_helpers::LowPassFilter<decltype(el0)>& el)
+#define AZ_TYPE my_helpers::LowPassFilter<decltype(az0)>
+void readSensor(AZ_TYPE& az, my_helpers::LowPassFilter<decltype(el0)>& el)
 {
     using namespace my_helpers;
     sensorDataReady = false;
@@ -282,7 +282,7 @@ void readSensor(my_helpers::LowPassFilter<decltype(az0)>& az, my_helpers::LowPas
                 gravity.normalize();
 
                 const auto elt = removeRotRad<decltype(el0)>(atan(gravity.x / sqrt(sqrf(gravity.y) + sqrf(gravity.z))));
-                el.push_back(elt);
+                el.push_back(elt, 0.01f);
 
 
                 VectorInt16 tmp;
@@ -297,7 +297,7 @@ void readSensor(my_helpers::LowPassFilter<decltype(az0)>& az, my_helpers::LowPas
 
                 //https://www.reddit.com/r/Astronomy/comments/3udenf/quaternion_matrix_or_euler_angles_conversion_to/
                 float azt = -2.f * atan2(q.z, q.w);
-                az.push_back(getAz(azt), 0.05f);
+                az.push_back(getAz(azt), 0.1);
             }
         }
     }
@@ -317,7 +317,7 @@ void loop()
     static elapsedMillis hadUsb;
     static uint32_t counter = 0;
 
-    static my_helpers::LowPassFilter<az_t> az(0);
+    static AZ_TYPE az(0);
     static my_helpers::LowPassFilter<az_t> el(0);
 
     const static float lightSens = radians(LCD_BACK_LIGHT_SENS_DEGREE);
