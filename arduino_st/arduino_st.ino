@@ -189,10 +189,11 @@ toFloat(const Vector<I>& src)
 //---------------------------------------------------------------------------------------------------
 #define twoKpDef  (2.0f * 0.5f)
 #define twoKiDef  (2.0f * 0.25f)
-#define betaDef	  0.05f
+#define betaDef	  0.05f //it was 0.2 originaly
 
 void MadgwickAHRSupdateIMU(float dt, Quaternion& q, float gx, float gy, float gz,  const VectorFloat& a)
 {
+    static float total_time = 0;
     float _2q0, _2q1, _2q2, _2q3, _4q0, _4q1, _4q2 ,_8q1, _8q2, q0q0, q1q1, q2q2, q3q3;
 
     // Rate of change of quaternion from gyroscope
@@ -227,7 +228,9 @@ void MadgwickAHRSupdateIMU(float dt, Quaternion& q, float gx, float gy, float gz
             4.0f * q1q1 * q.z - _2q1 * a.x + 4.0f * q2q2 * q.z - _2q2 * a.y
     };
     so.normalize();
-    so.scale(betaDef);
+    so.scale(betaDef + betaDef * total_time / 20.); //time correction rises each divider seconds
+    total_time += dt;
+
     qDot -= so;
     qDot *= dt;
 
