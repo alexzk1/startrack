@@ -267,19 +267,13 @@ void readSensor(my_helpers::Circular<decltype(az0), READINGS_AMOUNT_AVR>& az, my
                 interrupts();
             }
 
-            do
+            for(; fifoCount >= packetSize; fifoCount -= packetSize)
             {
                 static uint8_t fifoBuffer[64]; // FIFO storage buffer
                 static Quaternion q;           // [w, x, y, z]         quaternion container
                 static VectorFloat gravity;
 
-
-                if (fifoCount < packetSize)
-                    return;
-
                 mpu.getFIFOBytes(fifoBuffer, packetSize);
-
-                fifoCount -= packetSize;
 
                 mpu.dmpGetQuaternion(msg.message.value.vals.current_quat, fifoBuffer);
                 mpu.dmpGetQuaternion(&q, fifoBuffer);
@@ -300,15 +294,13 @@ void readSensor(my_helpers::Circular<decltype(az0), READINGS_AMOUNT_AVR>& az, my
 
                 mpu.dmpGetAccel(&tmp, fifoBuffer);
                 VectorFloat accel(toFloat(tmp));
-                accel.normalize();
 
                 MadgwickAHRSupdateIMU(dte, q, gyro.x, gyro.y, gyro.z, accel);
 
                 //https://www.reddit.com/r/Astronomy/comments/3udenf/quaternion_matrix_or_euler_angles_conversion_to/
                 float azt = -2.f * atan2(q.z, q.w);
                 az.push_back(getAz(azt));
-            }while(fifoCount >= packetSize);
-
+            }
         }
     }
 }
