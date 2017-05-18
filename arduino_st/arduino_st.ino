@@ -297,7 +297,7 @@ void readSensor(my_helpers::LowPassFilter<decltype(az0)>& az, my_helpers::LowPas
 
                 //https://www.reddit.com/r/Astronomy/comments/3udenf/quaternion_matrix_or_euler_angles_conversion_to/
                 float azt = -2.f * atan2(q.z, q.w);
-                az.push_back(getAz(azt));
+                az.push_back(getAz(azt), 0.05f);
             }
         }
     }

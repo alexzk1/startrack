@@ -117,7 +117,7 @@ namespace my_helpers
         }
 
     };
-    
+
     template <typename T, bool use_volatiles = false, typename parent_t = CBuffer<T, 2, use_volatiles>>
     class LowPassFilter : public parent_t
     {
@@ -138,7 +138,7 @@ namespace my_helpers
 
         void push_back(T value, double alpha = 0.8)
         {
-            parent_t::push_back(static_cast<T>(parent_t::back() * alpha + (1 - alpha) * value));
+            parent_t::push_back(static_cast<T>(parent_t::back() * alpha +  value * (1 - alpha)));
         }
 
         operator T() const
