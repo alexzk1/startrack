@@ -240,6 +240,7 @@ void MainWindow::startComPoll()
                     break;
                 std::this_thread::sleep_for(500ms);
             }
+            readyToTrackMap = false;
             if (!(*stop))
                 std::this_thread::sleep_for(5000ms);
         }
