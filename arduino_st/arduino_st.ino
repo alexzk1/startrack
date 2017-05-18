@@ -8,8 +8,6 @@
 #define SENSOR_6050_FIFO_HZ 10 //my update to motion_api, should be defined prior include
 #define USE_LCD
 #define INTERRUPT_PIN 2  // use pin 2 on Arduino Uno & most boards
-//#define READINGS_AMOUNT_AVR static_cast<uint8_t>((SENSOR_6050_FIFO_HZ) / 10 + 3) //how many reading to use to calc avr
-#define READINGS_AMOUNT_AVR 3
 
 #include "MPU6050_6Axis_MotionApps20.h"
 #include "MPU6050.h" // not necessary if using MotionApps include file
@@ -238,7 +236,7 @@ void MadgwickAHRSupdateIMU(float dt, Quaternion& q, float gx, float gy, float gz
 }
 //---------------------------------------------------------------------------------------------------
 
-void readSensor(my_helpers::Circular<decltype(az0), READINGS_AMOUNT_AVR>& az, my_helpers::Circular<decltype(el0), READINGS_AMOUNT_AVR>& el)
+void readSensor(my_helpers::LowPassFilter<decltype(az0)>& az, my_helpers::LowPassFilter<decltype(el0)>& el)
 {
     using namespace my_helpers;
     sensorDataReady = false;
@@ -319,8 +317,8 @@ void loop()
     static elapsedMillis hadUsb;
     static uint32_t counter = 0;
 
-    static my_helpers::Circular<az_t , READINGS_AMOUNT_AVR> az(0);
-    static my_helpers::Circular<az_t , READINGS_AMOUNT_AVR> el(0);
+    static my_helpers::LowPassFilter<az_t> az(0);
+    static my_helpers::LowPassFilter<az_t> el(0);
 
     const static float lightSens = radians(LCD_BACK_LIGHT_SENS_DEGREE);
     // if programming failed, don't try to do anything

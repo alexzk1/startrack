@@ -5,7 +5,7 @@
 
 namespace my_helpers
 {
-    using circular_counter_t = uint8_t;
+    using def_counter_t = uint8_t;
 
 #define EPSILON(T) (1./epsilon_t<T>::mul())
     template <typename T>
@@ -61,11 +61,10 @@ namespace my_helpers
     }
 
 
-    //not really circular buffer yet, but calcs avr. value and can do simple low-pass
-    template <typename T, circular_counter_t buff_size = 3, bool use_volatiles = false>
-    class Circular
+    template <typename T, def_counter_t buff_size, bool use_volatiles = false>
+    class CBuffer
     {
-    private:
+    protected:
         using counter_t = decltype(buff_size);
         typename std::conditional<use_volatiles, volatile counter_t, counter_t>::type insPos;
         typename std::conditional<use_volatiles, volatile T, T>::type buffer[buff_size];
@@ -80,22 +79,8 @@ namespace my_helpers
             delta %= buff_size; //that we need, because holder type can be unsigned
             return nextIndex(index, buff_size - delta);
         }
-
     public:
         using values_type = T;
-        Circular(T def)
-        {
-
-            clear(def);
-        }
-
-        Circular()                           = delete;
-        Circular(const Circular&)            = default;
-        Circular(Circular&&)                 = default;
-        Circular&operator=(const Circular&)  = default;
-        Circular&operator=(Circular&&)       = default;
-        ~Circular()                          = default; //yep, yep, no virtuals on MK!
-
         void clear(T def)
         {
             for(counter_t i = 0; i < buff_size; ++i)
@@ -103,28 +88,9 @@ namespace my_helpers
             insPos = 0;
         }
 
-        void push_back(T value)
-        {
-            buffer[insPos] = value;
-            insPos = nextIndex(insPos);
-        }
-
-        void push_back_lpf(T value, double alpha = 0.8)
-        {
-            push_back(static_cast<T>(back() * alpha + (1 - alpha) * value));
-        }
-
         const T& back() const
         {
             return *(buffer + prevIndex(insPos));
-        }
-
-        T avr() const
-        {
-            T summ = 0;
-            for(counter_t  i = 0; i < buff_size; ++i)
-                summ += *(buffer + i);
-            return summ / static_cast<T>(buff_size);
         }
 
         T lastDelta() const
@@ -133,14 +99,51 @@ namespace my_helpers
             T summ = 0;
             for(counter_t  i = 0; i < buff_size; ++i)
                 if (i != excl)
-                summ += *(buffer + i);
+                    summ += *(buffer + i);
 
             return (summ / (buff_size - 1)) - back();
         }
 
+        counter_t size() const
+        {
+            return buff_size;
+        }
+
+    protected:
+        void push_back(T value)
+        {
+            buffer[insPos] = value;
+            insPos = nextIndex(insPos);
+        }
+
+    };
+    
+    template <typename T, bool use_volatiles = false, typename parent_t = CBuffer<T, 2, use_volatiles>>
+    class LowPassFilter : public parent_t
+    {
+    public:
+
+        LowPassFilter(T def)
+        {
+            parent_t::clear(def);
+        }
+
+        LowPassFilter()                                = delete;
+        LowPassFilter(const LowPassFilter&)            = default;
+        LowPassFilter(LowPassFilter&&)                 = default;
+        LowPassFilter&operator=(const LowPassFilter&)  = default;
+        LowPassFilter&operator=(LowPassFilter&&)       = default;
+        ~LowPassFilter()                               = default; //yep, yep, no virtuals on MK!
+
+
+        void push_back(T value, double alpha = 0.8)
+        {
+            parent_t::push_back(static_cast<T>(parent_t::back() * alpha + (1 - alpha) * value));
+        }
+
         operator T() const
         {
-            return avr();
+            return parent_t::back();
         }
     };
 
