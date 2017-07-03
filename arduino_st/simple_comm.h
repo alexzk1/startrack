@@ -19,6 +19,7 @@
 
 namespace ard_st
 {
+    //that is UB in C++ technically and should be done using memcpy, however it works yet as is
     union Packer
     {
         struct vals_t
